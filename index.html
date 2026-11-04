@@ -188,11 +188,27 @@ a:focus-visible, button:focus-visible, input:focus-visible { outline: 3px solid 
 .hub { position: absolute; left: 50%; top: 50%; width: 26px; height: 26px; margin: -13px 0 0 -13px; border-radius: 50%; background: var(--ink); }
 .result { font: 800 clamp(26px, 8vw, 36px)/1.1 var(--display); letter-spacing: -0.02em; min-height: 1.1em; text-align: center; }
 
+[hidden] { display: none !important; }
+.roombar {
+  max-width: 620px; margin: 0 auto 14px; display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+  padding: 10px 12px; background: var(--surface); border: 2px solid var(--line); border-radius: 16px;
+  font: 600 14px var(--body); color: var(--ink);
+}
+.roombar .code { font: 800 18px var(--display); letter-spacing: 0.12em; }
+.roombar .sp { flex: 1 1 auto; }
+.roombar button {
+  min-height: 36px; padding: 0 14px; border-radius: 999px; border: 2px solid var(--line);
+  background: transparent; color: var(--ink); font: 600 13px var(--body); cursor: pointer;
+}
+.bigcode { font: 800 clamp(48px, 16vw, 72px)/1 var(--display); letter-spacing: 0.14em; color: var(--c); }
+.err { color: var(--couple); font-weight: 600; font-size: 14px; }
+.addrow input.codein { text-transform: uppercase; letter-spacing: 0.2em; font-weight: 700; max-width: 150px; }
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; animation: none !important; }
 }
 </style>
 
+<div id="roombar" class="roombar" hidden></div>
 <div id="app" class="app"></div>
 
 <script>
@@ -491,7 +507,10 @@ a:focus-visible, button:focus-visible, input:focus-visible { outline: 3px solid 
 
   /* ---------- state and helpers ---------- */
   var app = document.getElementById("app");
-  var state = { players: [], turn: 0, adult: false, ctx: null };
+  var state = { players: [], turn: 0, adult: false, ctx: null, joinCode: "" };
+  var curCat = "kitty";
+  var room = { ws: null, on: false, host: false, code: "", players: [], view: null, err: "", connecting: false };
+  var pingTimer = null;
   var cleanup = null;
   var actx = null;
 
@@ -537,13 +556,14 @@ a:focus-visible, button:focus-visible, input:focus-visible { outline: 3px solid 
     refill();
     return function () { if (pos >= order.length) refill(); return order[pos++]; };
   }
-  function curName() { return state.players.length ? state.players[state.turn % state.players.length] : null; }
+  function curName() { var l = plist(); return l.length ? l[state.turn % l.length] : null; }
   function otherName() {
-    var n = state.players.length;
+    var l = plist();
+    var n = l.length;
     if (n < 2) return "someone in the room";
     var cur = state.turn % n, j;
     do { j = Math.floor(Math.random() * n); } while (j === cur);
-    return state.players[j];
+    return l[j];
   }
   function fmt(s) { var m = Math.floor(s / 60), r = s % 60; return m + ":" + (r < 10 ? "0" : "") + r; }
   function reduce() { return !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches); }
@@ -566,6 +586,7 @@ a:focus-visible, button:focus-visible, input:focus-visible { outline: 3px solid 
 
   /* ---------- shared components ---------- */
   function playersEditor(onchange) {
+    if (room.on) return el("div");
     var box = el("div", { class: "stack" });
     function draw() {
       box.textContent = "";
@@ -639,6 +660,7 @@ a:focus-visible, button:focus-visible, input:focus-visible { outline: 3px solid 
         card.appendChild(el("span", { class: "tag" }, ["Deck finished"]));
         card.appendChild(el("p", { class: "card-text" }, ["That was all " + order.length + " cards."]));
         card.appendChild(el("p", { class: "card-foot" }, ["Shuffle to play again in a new order."]));
+        publish({ kind: "card", tag: "Deck finished", text: "That was all " + order.length + " cards.", foot: "", adult: !!g.adult });
       } else {
         var c = shown[pos];
         card.appendChild(el("span", { class: "tag" }, [g.label + " · " + (pos + 1) + " of " + order.length]));
@@ -647,6 +669,7 @@ a:focus-visible, button:focus-visible, input:focus-visible { outline: 3px solid 
         if (c.who) foot.push("Turn: " + c.who);
         if (g.hint) foot.push(g.hint);
         card.appendChild(el("p", { class: "card-foot" }, [foot.join(" · ")]));
+        publish({ kind: "card", tag: g.label + " · " + (pos + 1) + " of " + order.length, text: c.text, foot: foot.join(" · "), adult: !!g.adult });
       }
       wrap.appendChild(card);
       var back_ = el("button", { class: "btn ghost", type: "button", onclick: back }, ["Back"]);
@@ -677,6 +700,7 @@ a:focus-visible, button:focus-visible, input:focus-visible { outline: 3px solid 
         card.appendChild(el("span", { class: "tag" }, ["Your turn"]));
         card.appendChild(el("p", { class: "card-text" }, [who ? who + ", pick one." : "Pick one."]));
         card.appendChild(el("p", { class: "card-foot" }, ["Skip any card you are not comfortable with."]));
+        publish({ kind: "card", tag: "Your turn", text: who ? who + ", pick truth or dare." : "Pick truth or dare.", foot: "" });
         wrap.appendChild(card);
         wrap.appendChild(el("div", { class: "actions" }, [
           el("button", { class: "btn", type: "button", onclick: function () { pick("truth"); } }, ["Truth"]),
@@ -686,6 +710,7 @@ a:focus-visible, button:focus-visible, input:focus-visible { outline: 3px solid 
         card.appendChild(el("span", { class: "tag" }, [cur.kind === "truth" ? "Truth" : "Dare"]));
         card.appendChild(el("p", { class: "card-text" }, [cur.text]));
         card.appendChild(el("p", { class: "card-foot" }, [cur.who ? "Turn: " + cur.who : ""]));
+        publish({ kind: "card", tag: cur.kind === "truth" ? "Truth" : "Dare", text: cur.text, foot: cur.who ? "Turn: " + cur.who : "" });
         wrap.appendChild(card);
         wrap.appendChild(el("div", { class: "actions" }, [
           el("button", { class: "btn ghost", type: "button", onclick: function () { pick(cur.kind); } }, ["Swap card"]),
@@ -698,6 +723,7 @@ a:focus-visible, button:focus-visible, input:focus-visible { outline: 3px solid 
 
   function tambolaScreen(root) {
     var pool = shuffle(Array.apply(null, Array(90)).map(function (_, i) { return i + 1; }));
+    publish({ kind: "number", n: null, nick: "Waiting for the first number.", count: "0 of 90 called", called: [] });
     var called = [], auto = null, speak = false, armTimer = null, armed = false;
     var cells = {};
 
@@ -730,6 +756,7 @@ a:focus-visible, button:focus-visible, input:focus-visible { outline: 3px solid 
       ball.textContent = String(v);
       nick.textContent = NICK[v] || "Number " + v;
       count.textContent = called.length + " of 90 called";
+      publish({ kind: "number", n: v, nick: nick.textContent, count: count.textContent, called: called.slice() });
       recent.textContent = "";
       called.slice(-7, -1).reverse().forEach(function (x) { recent.appendChild(el("span", null, [String(x)])); });
       say(v);
@@ -757,6 +784,7 @@ a:focus-visible, button:focus-visible, input:focus-visible { outline: 3px solid 
       Object.keys(cells).forEach(function (k) { cells[k].className = "cell"; });
       ball.textContent = "–"; nick.textContent = "Tap Call next number to start.";
       count.textContent = "0 of 90 called"; recent.textContent = "";
+      publish({ kind: "number", n: null, nick: "New game. Waiting for the first number.", count: "0 of 90 called", called: [] });
     } }, ["Reset game"]);
 
     setCleanup(function () {
@@ -797,6 +825,10 @@ a:focus-visible, button:focus-visible, input:focus-visible { outline: 3px solid 
     function show() {
       wrap.textContent = "";
       var who = curName();
+      if (phase === "setup") publish({ kind: "card", tag: "Dumb Charades", text: "The host is choosing a category.", foot: "" });
+      else if (phase === "ready") publish({ kind: "card", tag: "Dumb Charades", text: who ? who + " acts next." : "The next player is up.", foot: "Get ready to guess." });
+      else if (phase === "play") publish({ kind: "card", tag: "Dumb Charades", text: (who ? who : "Someone") + " is acting. Shout your guesses!", foot: CHARADES[catKey].name });
+      else publish({ kind: "card", tag: "Time is up", text: who ? who + " got " + score + "." : "Score: " + score + ".", foot: "" });
       if (phase === "setup") {
         var cats = el("div", { class: "chips" });
         Object.keys(CHARADES).forEach(function (k) {
@@ -860,6 +892,8 @@ a:focus-visible, button:focus-visible, input:focus-visible { outline: 3px solid 
     var timerEl = el("div", { class: "timer" }, ["0:30"]);
     var turnEl = el("p", { class: "score" }, [curName() ? "Turn: " + curName() : ""]);
     var startBtn = el("button", { class: "btn ghost", type: "button", onclick: startTimer }, ["Start 30 second clock"]);
+    function pubLetter() { publish({ kind: "card", tag: "Sing a song starting with", text: letter, foot: curName() ? "Turn: " + curName() : "" }); }
+    pubLetter();
     setCleanup(function () { clearInterval(tid); });
 
     function tick() {
@@ -878,7 +912,7 @@ a:focus-visible, button:focus-visible, input:focus-visible { outline: 3px solid 
       state.turn++;
       letter = nextLetter(); letterEl.textContent = letter;
       timerEl.textContent = "0:30"; startBtn.textContent = "Start 30 second clock";
-      turnEl.textContent = curName() ? "Turn: " + curName() : "";
+      turnEl.textContent = curName() ? "Turn: " + curName() : ""; pubLetter();
     }
     root.appendChild(el("div", { class: "stack" }, [
       el("div", { class: "card" }, [
@@ -895,17 +929,19 @@ a:focus-visible, button:focus-visible, input:focus-visible { outline: 3px solid 
     setCleanup(function () { clearTimeout(timer); });
     function build() {
       root.textContent = "";
-      var n = state.players.length;
+      var list = plist();
+      var n = list.length;
+      publish({ kind: "card", tag: "Spin to Pick", text: "The host is about to spin.", foot: "" });
       if (n < 2) {
         root.appendChild(el("div", { class: "stack" }, [
-          el("p", { class: "rule" }, ["Add at least two names to spin."]),
+          el("p", { class: "rule" }, [room.on ? "Waiting for friends to join the room." : "Add at least two names to spin."]),
           playersEditor(build)
         ]));
         return;
       }
       var wheel = el("div", { class: "wheel" + (n > 8 ? " dense" : "") });
       var names = [];
-      state.players.forEach(function (p, i) {
+      list.forEach(function (p, i) {
         var a = i * 2 * Math.PI / n;
         var s = el("span", { class: "wname", style: "left:" + (50 + 38 * Math.sin(a)).toFixed(2) + "%;top:" + (50 - 38 * Math.cos(a)).toFixed(2) + "%" }, [p]);
         names.push(s); wheel.appendChild(s);
@@ -927,7 +963,8 @@ a:focus-visible, button:focus-visible, input:focus-visible { outline: 3px solid 
         arrow.style.transform = "rotate(" + rot + "deg)";
         timer = setTimeout(function () {
           names[target].classList.add("win");
-          result.textContent = state.players[target] + ", you are up.";
+          result.textContent = list[target] + ", you are up.";
+          publish({ kind: "card", tag: "Spin to Pick", text: list[target] + ", you are up.", foot: "" });
           busy = false; btn.disabled = false;
         }, reduce() ? 200 : 3800);
       });
@@ -935,7 +972,7 @@ a:focus-visible, button:focus-visible, input:focus-visible { outline: 3px solid 
         el("div", { class: "wheelbox" }, [wheel]),
         result,
         el("div", { class: "actions" }, [btn]),
-        el("div", { class: "panel" }, [el("p", { class: "label" }, ["Players"]), playersEditor(build)])
+        (room.on ? null : el("div", { class: "panel" }, [el("p", { class: "label" }, ["Players"]), playersEditor(build)]))
       ]));
     }
     build();
@@ -959,24 +996,25 @@ a:focus-visible, button:focus-visible, input:focus-visible { outline: 3px solid 
         el("h1", { class: "wordmark" }, ["Playroom"]),
         el("p", { class: "lede" }, ["Party games for one phone and a few friends."])
       ]),
-      el("div", { class: "panel" }, [
+      roomPanel(),
+      room.on ? null : el("div", { class: "panel" }, [
         el("p", { class: "label" }, ["Who is playing"]),
         el("p", { class: "small" }, ["Optional. Names are used for turns and dares. They stay on this phone."]),
         playersEditor()
       ]),
       el("div", { class: "stack" }, [el("p", { class: "label" }, ["Pick a mood"]), tiles]),
-      el("p", { class: "small" }, ["This version is pass-the-phone: everyone plays on one screen. Room codes, so friends can join from their own phones, come next."])
+      el("p", { class: "small" }, ["Play on one phone, or open a room so every friend sees each card on their own phone."])
     ]);
   }
 
-  function gateView(backHash) {
+  function gateView(backHash, guest) {
     return el("div", { class: "wrap", style: colorStyle("drinks") }, [
-      topbar(backHash, "Back"),
+      guest ? null : topbar(backHash, "Back"),
       el("h1", { class: "title" }, ["Adults only"]),
       el("p", { class: "rule" }, ["These games involve alcohol. Continue only if you are of legal drinking age where you live. The legal age is different in each Indian state."]),
       el("div", { class: "notice" }, ["Sipping is always optional. Water counts. Nobody should drink more than they want, and nobody should drive after drinking."]),
       el("div", { class: "actions" }, [
-        el("a", { class: "btn ghost", href: "#" + backHash, style: "text-decoration:none" }, ["Take me back"]),
+        guest ? el("button", { class: "btn ghost", type: "button", onclick: leaveRoom }, ["Leave room"]) : el("a", { class: "btn ghost", href: "#" + backHash, style: "text-decoration:none" }, ["Take me back"]),
         el("button", { class: "btn", type: "button", onclick: function () {
           state.adult = true;
           try { sessionStorage.setItem("playroom.adult", "1"); } catch (e) {}
@@ -1011,6 +1049,7 @@ a:focus-visible, button:focus-visible, input:focus-visible { outline: 3px solid 
     var g = GAMES[gid];
     if (!g) { location.hash = ""; return el("div"); }
     var cat = catFor(gid);
+    curCat = cat;
     if (g.adult && !state.adult) return gateView(cat);
     var body = el("div", { class: "stack" });
     var parts = [
@@ -1029,15 +1068,207 @@ a:focus-visible, button:focus-visible, input:focus-visible { outline: 3px solid 
     return el("div", { class: "wrap", style: colorStyle(cat) }, parts);
   }
 
+  /* ---------- rooms ---------- */
+  function canRoom() { return location.protocol === "http:" || location.protocol === "https:"; }
+  function myName() { try { return localStorage.getItem("playroom.myname") || ""; } catch (e) { return ""; } }
+  function saveName(v) { try { localStorage.setItem("playroom.myname", v); } catch (e) {} }
+  function plist() { return (room.on && room.host && room.players.length) ? room.players : state.players; }
+  function roomSend(o) { if (room.ws && room.ws.readyState === 1) room.ws.send(JSON.stringify(o)); }
+  function publish(view) {
+    view.cat = curCat;
+    room.view = view;
+    if (room.on && room.host) roomSend({ t: "show", view: view });
+  }
+  function stopPing() { if (pingTimer) { clearInterval(pingTimer); pingTimer = null; } }
+  function startPing() { stopPing(); pingTimer = setInterval(function () { roomSend({ t: "ping" }); }, 25000); }
+
+  function updateRoomBar() {
+    var bar = document.getElementById("roombar");
+    if (!bar) return;
+    bar.textContent = "";
+    if (!room.on) { bar.hidden = true; return; }
+    bar.hidden = false;
+    bar.appendChild(el("span", { class: "code" }, [room.code]));
+    bar.appendChild(el("span", null, [room.players.length + (room.players.length === 1 ? " player" : " players") + (room.host ? " · you are the host" : "")]));
+    bar.appendChild(el("span", { class: "sp" }));
+    bar.appendChild(el("button", { type: "button", onclick: leaveRoom }, [room.host ? "Close room" : "Leave"]));
+  }
+
+  function leaveRoom() {
+    var ws = room.ws;
+    room.on = false; room.host = false; room.code = ""; room.players = []; room.view = null;
+    room.err = ""; room.connecting = false; room.ws = null;
+    stopPing();
+    if (ws) { ws.onclose = null; try { ws.close(); } catch (e) {} }
+    state.joinCode = "";
+    updateRoomBar();
+    if (location.hash && location.hash !== "#") location.hash = ""; else render();
+  }
+
+  function connect(first) {
+    if (room.connecting || room.on) return;
+    room.err = ""; room.connecting = true; render();
+    var ws;
+    try { ws = new WebSocket((location.protocol === "https:" ? "wss://" : "ws://") + location.host); }
+    catch (e) { room.err = "Could not connect."; room.connecting = false; render(); return; }
+    room.ws = ws;
+    ws.onopen = function () { ws.send(JSON.stringify(first)); startPing(); };
+    ws.onmessage = function (ev) { var m; try { m = JSON.parse(ev.data); } catch (e) { return; } onRoomMsg(m); };
+    ws.onclose = function () {
+      stopPing();
+      var was = room.on, wasHost = room.host;
+      room.on = false; room.host = false; room.ws = null; room.connecting = false; room.players = []; room.code = "";
+      if (was) room.err = wasHost ? "Connection lost. Your room has closed." : "Disconnected from the room.";
+      else if (!room.err) room.err = "Could not connect. The server may be waking up, so try again in a minute.";
+      updateRoomBar(); render();
+    };
+  }
+
+  function onRoomMsg(m) {
+    if (m.t === "joined") {
+      room.on = true; room.connecting = false; room.host = !!m.host; room.code = m.code;
+      room.players = m.players || []; room.view = m.view || null; room.err = ""; state.joinCode = "";
+      updateRoomBar();
+      if (location.hash && location.hash !== "#") location.hash = ""; else render();
+    } else if (m.t === "players") {
+      room.players = m.players || [];
+      updateRoomBar();
+      if (room.host) { var r = location.hash.replace("#", ""); if (!r || r === "home") render(); }
+    } else if (m.t === "show") {
+      if (!room.host) { room.view = m.view; render(); }
+    } else if (m.t === "error") {
+      room.err = m.msg || "Something went wrong.";
+      room.connecting = false;
+      var ws = room.ws; room.ws = null;
+      if (ws) { ws.onclose = null; try { ws.close(); } catch (e) {} }
+      stopPing();
+      render();
+    } else if (m.t === "closed") {
+      leaveRoom();
+      room.err = "The host closed the room.";
+      render();
+    }
+  }
+
+  function roomPanel() {
+    var panel = el("div", { class: "panel" });
+    if (!canRoom()) {
+      panel.appendChild(el("p", { class: "label" }, ["Play together"]));
+      panel.appendChild(el("p", { class: "small" }, ["Rooms work on the live website, not in a preview or a saved file."]));
+      return panel;
+    }
+    if (room.on) {
+      var link = location.origin + "/#join-" + room.code;
+      var copyBtn = el("button", { class: "btn ghost", type: "button" }, ["Copy link"]);
+      copyBtn.addEventListener("click", function () {
+        try {
+          navigator.clipboard.writeText(link).then(
+            function () { copyBtn.textContent = "Copied"; },
+            function () { copyBtn.textContent = "Select the link above"; }
+          );
+        } catch (e) { copyBtn.textContent = "Select the link above"; }
+      });
+      var chips = el("div", { class: "chips" });
+      room.players.forEach(function (p) { chips.appendChild(el("span", { class: "pchip" }, [p])); });
+      panel.appendChild(el("p", { class: "label" }, ["Your room"]));
+      panel.appendChild(el("div", { class: "bigcode", "aria-label": "Room code" }, [room.code]));
+      panel.appendChild(el("p", { class: "small" }, ["Friends open this link, or go to the site and type the code."]));
+      panel.appendChild(el("p", { class: "small", style: "word-break:break-all" }, [link]));
+      panel.appendChild(chips);
+      panel.appendChild(el("div", { class: "actions" }, [
+        el("a", { class: "btn", style: "text-decoration:none", target: "_blank", rel: "noopener",
+          href: "https://wa.me/?text=" + encodeURIComponent("Join my Playroom game. Open " + link + " or enter code " + room.code) }, ["Share on WhatsApp"]),
+        copyBtn
+      ]));
+      panel.appendChild(el("p", { class: "small" }, ["Now open any game below. Every phone in the room shows each card as you play."]));
+      return panel;
+    }
+    var nameIn = el("input", { id: "myname", type: "text", maxlength: "16", placeholder: "Your name", autocomplete: "off", "aria-label": "Your name", value: myName() });
+    var codeIn = el("input", { id: "joincode", class: "codein", type: "text", maxlength: "4", placeholder: "CODE", autocomplete: "off", "aria-label": "Room code", value: state.joinCode });
+    var createBtn = el("button", { class: "btn", type: "button" }, ["Create room"]);
+    var joinBtn = el("button", { class: "btn small-btn", type: "button" }, ["Join"]);
+    if (room.connecting) { createBtn.disabled = true; joinBtn.disabled = true; }
+    function nameVal() {
+      var v = nameIn.value.replace(/\s+/g, " ").trim().slice(0, 16);
+      if (v) saveName(v);
+      return v;
+    }
+    createBtn.addEventListener("click", function () {
+      var nm = nameVal();
+      if (!nm) { room.err = "Enter your name first."; render(); return; }
+      connect({ t: "create", name: nm });
+    });
+    joinBtn.addEventListener("click", function () {
+      var nm = nameVal();
+      var cd = codeIn.value.toUpperCase().replace(/[^A-Z]/g, "").slice(0, 4);
+      state.joinCode = cd;
+      if (!nm) { room.err = "Enter your name first."; render(); return; }
+      if (cd.length !== 4) { room.err = "Enter the 4 letter room code."; render(); return; }
+      connect({ t: "join", code: cd, name: nm });
+    });
+    panel.appendChild(el("p", { class: "label" }, ["Play together"]));
+    panel.appendChild(el("p", { class: "small" }, ["Everyone plays on their own phone. One person creates a room, the others join with the code."]));
+    panel.appendChild(el("div", { class: "addrow" }, [nameIn]));
+    panel.appendChild(el("div", { class: "actions" }, [createBtn]));
+    panel.appendChild(el("div", { class: "addrow" }, [codeIn, joinBtn]));
+    if (room.connecting) panel.appendChild(el("p", { class: "small", "aria-live": "polite" }, ["Connecting. The first connection can take up to a minute while the server wakes up."]));
+    if (room.err) panel.appendChild(el("p", { class: "err", "aria-live": "polite" }, [room.err]));
+    return panel;
+  }
+
+  function guestView() {
+    var v = room.view || { kind: "idle", text: "Waiting for the host to pick a game." };
+    if (v.adult && !state.adult) return gateView("", true);
+    var parts = [
+      el("div", { class: "stack", style: "gap:8px" }, [
+        el("h1", { class: "title" }, ["Room " + room.code]),
+        el("p", { class: "lede" }, ["Playing: " + room.players.join(", ")])
+      ])
+    ];
+    if (v.kind === "number") {
+      var called = v.called || [];
+      var board = el("div", { class: "board" });
+      for (var i = 1; i <= 90; i++) {
+        board.appendChild(el("div", { class: "cell" + (called.indexOf(i) > -1 ? " on" : "") + (i === v.n ? " last" : "") }, [String(i)]));
+      }
+      parts.push(el("div", { class: "stack" }, [
+        el("div", { class: "callrow" }, [
+          el("div", { class: "ball", "aria-live": "polite" }, [v.n ? String(v.n) : "–"]),
+          el("div", null, [el("p", { class: "nick" }, [v.nick || ""]), el("p", { class: "score" }, [v.count || ""])])
+        ]),
+        board
+      ]));
+    } else if (v.kind === "card") {
+      parts.push(el("div", { class: "card", "aria-live": "polite" }, [
+        el("span", { class: "tag" }, [v.tag || "Playroom"]),
+        el("p", { class: "card-text" }, [v.text || ""]),
+        el("p", { class: "card-foot" }, [v.foot || ""])
+      ]));
+    } else {
+      parts.push(el("div", { class: "card", "aria-live": "polite" }, [
+        el("span", { class: "tag" }, ["Playroom"]),
+        el("p", { class: "card-text" }, [v.text || "Waiting for the host."]),
+        el("p", { class: "card-foot" }, [""])
+      ]));
+    }
+    return el("div", { class: "wrap", style: colorStyle(v.cat || "kitty") }, parts);
+  }
+
   function render() {
     if (cleanup) { try { cleanup(); } catch (e) {} cleanup = null; }
     app.textContent = "";
     var r = location.hash.replace("#", "") || "home";
+    updateRoomBar();
+    if (room.on && !room.host) { app.appendChild(guestView()); return; }
     var view;
     if (CATS[r]) view = categoryView(r);
     else if (r.indexOf("game-") === 0) view = gameView(r.slice(5));
-    else view = homeView();
+    else {
+      if (r.indexOf("join-") === 0) state.joinCode = r.slice(5).toUpperCase().replace(/[^A-Z]/g, "").slice(0, 4);
+      view = homeView();
+    }
     app.appendChild(view);
+    if (room.on && room.host && r.indexOf("game-") !== 0) publish({ kind: "idle", text: "The host is choosing the next game." });
     try { window.scrollTo(0, 0); } catch (e) {}
   }
 
