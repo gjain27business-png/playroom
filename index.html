@@ -1,0 +1,1049 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Playroom</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600..800&family=Figtree:wght@400..700&display=swap">
+<style>
+/* Layout: one narrow column. Home is four big colour tiles, then one game per screen. */
+:root {
+  --bg: #F3EFFA;
+  --surface: #FFFFFF;
+  --ink: #20192F;
+  --muted: #665E7C;
+  --line: #DDD5EE;
+  --brand: #4A2FD6;
+  --brand-on: #FFFFFF;
+  --kitty: #C2307F;
+  --kitty-on: #FFFFFF;
+  --couple: #D9452B;
+  --couple-on: #FFFFFF;
+  --drinks: #F2B01E;
+  --drinks-on: #20192F;
+  --house: #12857A;
+  --house-on: #FFFFFF;
+  --display: "Bricolage Grotesque", "Trebuchet MS", system-ui, sans-serif;
+  --body: "Figtree", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #15101F; --surface: #221A33; --ink: #F4EFFF; --muted: #AAA0C4; --line: #3B2F54;
+    --brand: #8F7BFF; --brand-on: #150F22;
+    --kitty: #F06BAE; --kitty-on: #1B1428;
+    --couple: #FF8467; --couple-on: #1B1428;
+    --drinks: #F5B93A; --drinks-on: #1B1428;
+    --house: #3CC4B5; --house-on: #1B1428;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #15101F; --surface: #221A33; --ink: #F4EFFF; --muted: #AAA0C4; --line: #3B2F54;
+  --brand: #8F7BFF; --brand-on: #150F22;
+  --kitty: #F06BAE; --kitty-on: #1B1428;
+  --couple: #FF8467; --couple-on: #1B1428;
+  --drinks: #F5B93A; --drinks-on: #1B1428;
+  --house: #3CC4B5; --house-on: #1B1428;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  padding-block: 18px 56px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  background: var(--bg);
+  color: var(--ink);
+  font: 16px/1.5 var(--body);
+}
+.app { --c: var(--brand); --on: var(--brand-on); }
+.wrap { max-width: 620px; margin: 0 auto; display: flex; flex-direction: column; gap: 22px; }
+.wrap > * { min-width: 0; }
+
+h1, h2, h3, p { margin: 0; }
+h1, h2, h3 { text-wrap: balance; }
+.wordmark { font: 800 clamp(46px, 14vw, 68px)/0.95 var(--display); letter-spacing: -0.035em; }
+.title { font: 800 clamp(30px, 9vw, 42px)/1 var(--display); letter-spacing: -0.03em; }
+.lede { color: var(--muted); font-size: 17px; max-width: 46ch; }
+.label { font: 700 12px var(--body); letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+.small { color: var(--muted); font-size: 14px; }
+.rule { font-size: 16px; max-width: 52ch; }
+.notice { background: var(--surface); border: 2px solid var(--line); border-radius: 14px; padding: 12px 14px; font-size: 14px; color: var(--muted); }
+
+.dots { display: flex; }
+.dots i { width: 18px; height: 18px; border-radius: 50%; margin-right: -6px; border: 2px solid var(--bg); }
+.dots i:nth-child(1) { background: var(--kitty); }
+.dots i:nth-child(2) { background: var(--couple); }
+.dots i:nth-child(3) { background: var(--drinks); }
+.dots i:nth-child(4) { background: var(--house); }
+
+.bar { display: flex; align-items: center; gap: 12px; }
+.back {
+  display: inline-flex; align-items: center; min-height: 44px; padding: 0 16px;
+  border-radius: 999px; text-decoration: none; color: var(--ink);
+  font: 600 15px var(--body); box-shadow: inset 0 0 0 2px var(--line);
+}
+
+a:focus-visible, button:focus-visible, input:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
+
+.btn {
+  font: 700 16px/1 var(--body); min-height: 52px; padding: 0 22px; border-radius: 14px; border: 0;
+  background: var(--c); color: var(--on); cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px; flex: 1 1 140px;
+}
+.btn:active { transform: translateY(1px); }
+.btn:disabled { opacity: 0.45; cursor: default; }
+.btn.ghost { background: transparent; color: var(--ink); box-shadow: inset 0 0 0 2px var(--line); }
+.btn.alt { background: var(--ink); color: var(--bg); }
+.btn.small-btn { min-height: 44px; flex: 0 0 auto; padding: 0 18px; }
+.actions { display: flex; flex-wrap: wrap; gap: 10px; }
+
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip {
+  min-height: 42px; padding: 0 16px; border-radius: 999px; cursor: pointer;
+  border: 2px solid var(--line); background: transparent; color: var(--ink); font: 600 14px var(--body);
+}
+.chip[aria-pressed="true"] { background: var(--c); color: var(--on); border-color: var(--c); }
+
+.tiles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.tile {
+  display: flex; flex-direction: column; justify-content: space-between; gap: 18px; min-height: 184px;
+  padding: 16px; border-radius: 24px; text-decoration: none; background: var(--tc); color: var(--ton);
+}
+.tile h3 { font: 800 clamp(23px, 6.6vw, 30px)/1 var(--display); letter-spacing: -0.02em; }
+.tile p { font-size: 14px; line-height: 1.35; }
+.tile .count { font: 700 13px var(--body); letter-spacing: 0.04em; }
+
+.rows { display: flex; flex-direction: column; gap: 10px; }
+.row {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 12px; align-items: center;
+  padding: 16px; background: var(--surface); border: 2px solid var(--line); border-radius: 18px;
+  text-decoration: none; color: var(--ink);
+}
+.row h3 { font: 700 20px/1.15 var(--display); letter-spacing: -0.01em; }
+.row p { color: var(--muted); font-size: 14px; grid-column: 1; }
+.row .meta { font: 600 12px var(--body); letter-spacing: 0.06em; text-transform: uppercase; color: var(--c); grid-column: 1; }
+.row .go { grid-column: 2; grid-row: 1 / span 3; font: 700 22px var(--display); color: var(--c); }
+
+.panel { background: var(--surface); border: 2px solid var(--line); border-radius: 22px; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+.addrow { display: flex; gap: 8px; }
+.addrow input {
+  flex: 1 1 auto; min-width: 0; min-height: 44px; border-radius: 12px; border: 2px solid var(--line);
+  background: var(--bg); color: var(--ink); padding: 0 12px; font: 500 16px var(--body);
+}
+.pchip { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 6px 0 14px; border-radius: 999px; background: var(--bg); border: 2px solid var(--line); font-weight: 600; font-size: 14px; }
+.pchip button { width: 28px; height: 28px; border-radius: 50%; border: 0; background: transparent; color: var(--muted); font-size: 18px; line-height: 1; cursor: pointer; }
+
+.card {
+  background: var(--surface); border: 2px solid var(--line); border-radius: 26px; padding: 20px;
+  min-height: 300px; display: flex; flex-direction: column; justify-content: space-between; gap: 20px;
+}
+.card .tag {
+  align-self: flex-start; background: var(--c); color: var(--on); font: 700 12px var(--body);
+  letter-spacing: 0.08em; text-transform: uppercase; padding: 6px 10px; border-radius: 8px;
+}
+.card-text { font: 700 clamp(24px, 6.6vw, 34px)/1.2 var(--display); letter-spacing: -0.015em; text-wrap: balance; }
+.card-foot { color: var(--muted); font-size: 14px; }
+.stack { display: flex; flex-direction: column; gap: 14px; }
+
+.ball {
+  width: 168px; height: 168px; border-radius: 50%; background: var(--c); color: var(--on);
+  display: grid; place-items: center; font: 800 80px/1 var(--display); font-variant-numeric: tabular-nums; letter-spacing: -0.04em;
+}
+.callrow { display: flex; align-items: center; gap: 18px; }
+.callrow > div { min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.nick { font: 700 20px/1.2 var(--display); }
+.board { display: grid; grid-template-columns: repeat(10, minmax(0, 1fr)); gap: 3px; }
+.cell {
+  aspect-ratio: 1; display: grid; place-items: center; font: 600 12px var(--body); font-variant-numeric: tabular-nums;
+  border-radius: 6px; background: var(--surface); color: var(--muted); border: 1px solid var(--line);
+}
+.cell.on { background: var(--c); color: var(--on); border-color: var(--c); font-weight: 700; }
+.cell.last { outline: 3px solid var(--ink); outline-offset: 1px; }
+.recent { display: flex; flex-wrap: wrap; gap: 6px; min-height: 30px; }
+.recent span { font: 700 14px var(--body); font-variant-numeric: tabular-nums; padding: 4px 10px; border-radius: 999px; border: 2px solid var(--line); }
+
+.timer { font: 800 56px/1 var(--display); font-variant-numeric: tabular-nums; letter-spacing: -0.03em; }
+.bigletter { font: 800 150px/1 var(--display); letter-spacing: -0.04em; color: var(--c); }
+.score { font: 700 15px var(--body); color: var(--muted); font-variant-numeric: tabular-nums; }
+
+.wheelbox { display: flex; justify-content: center; }
+.wheel {
+  position: relative; width: min(88vw, 360px); aspect-ratio: 1; max-width: 100%;
+  border-radius: 50%; border: 2px solid var(--line); background: var(--surface);
+}
+.wname {
+  position: absolute; transform: translate(-50%, -50%); max-width: 22%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font: 600 13px var(--body); padding: 3px 6px; border-radius: 8px;
+}
+.wheel.dense .wname { font-size: 11px; padding: 2px 4px; }
+.wname.win { background: var(--c); color: var(--on); font-weight: 800; }
+.arrow { position: absolute; inset: 0; transition: transform 3.6s cubic-bezier(0.12, 0.7, 0.1, 1); }
+.arrow::before { content: ""; position: absolute; left: 50%; top: 16%; width: 8px; height: 34%; margin-left: -4px; background: var(--c); border-radius: 4px 4px 0 0; }
+.arrow::after { content: ""; position: absolute; left: 50%; top: 12%; margin-left: -11px; border-left: 11px solid transparent; border-right: 11px solid transparent; border-bottom: 18px solid var(--c); }
+.hub { position: absolute; left: 50%; top: 50%; width: 26px; height: 26px; margin: -13px 0 0 -13px; border-radius: 50%; background: var(--ink); }
+.result { font: 800 clamp(26px, 8vw, 36px)/1.1 var(--display); letter-spacing: -0.02em; min-height: 1.1em; text-align: center; }
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; animation: none !important; }
+}
+</style>
+
+<div id="app" class="app"></div>
+
+<script>
+(function () {
+  "use strict";
+
+  /* ---------- content ---------- */
+  var KITTYQ = [
+    "What is the best gift you have ever received, and who gave it?",
+    "Which recipe would you never share, even with your best friend?",
+    "What is one thing from your childhood you wish you could bring back?",
+    "If the kitty fund doubled overnight, where would the group go for a trip?",
+    "What is the funniest thing a child in your family has said to you?",
+    "Name a movie you can watch on repeat without getting bored.",
+    "What did you spend your first salary or first pocket money on?",
+    "Which song instantly makes you get up and dance?",
+    "What is your go-to excuse to skip a function?",
+    "Who in this room gives the best advice? Say why.",
+    "What is the oddest food combination you secretly love?",
+    "Describe your dream holiday in three words.",
+    "What is the most awkward thing you have seen happen at a wedding?",
+    "Which old Hindi song do you know every word of?",
+    "What is one skill you want to learn this year?",
+    "What is the best compliment you have ever received?",
+    "Tell the funniest story from a train or bus journey.",
+    "If you could swap lives with someone in this room for a day, who and why?",
+    "What small habit of yours does everyone at home tease you about?",
+    "What is one thing on your bucket list that nobody here knows about?"
+  ];
+
+  var COUPLE = {
+    "Warm-up": [
+      "What is a small thing I do that always makes your day better?",
+      "What was your first impression of me?",
+      "Which meal would you pick for our perfect lazy Sunday?",
+      "What is a song that reminds you of us?",
+      "Which place we visited together do you want to see again?",
+      "What is something silly that made you laugh this week?",
+      "Which habit of mine annoyed you at first and now feels cute?",
+      "If we had a free weekend and no phones, what would you plan?",
+      "What is your favourite photo of the two of us?",
+      "Which movie do you want us to watch together next?"
+    ],
+    "Closer": [
+      "When did you feel most supported by me?",
+      "What is one thing you want us to do more of this year?",
+      "What is a fear you rarely say out loud?",
+      "What does a good day together look like ten years from now?",
+      "What is something you want me to ask you about more often?",
+      "Which memory from before we met shaped who you are?",
+      "When you need space, how can I give it without you feeling alone?",
+      "What is something you are proud of that you rarely mention?",
+      "What would you like us to learn or try together?",
+      "What do you need more of from me right now, and what do you need less of?"
+    ],
+    "Flirty": [
+      "Describe the moment you knew you liked me, in one sentence.",
+      "What is the most attractive thing I do without noticing?",
+      "Plan our next date night in 30 seconds. I have to say yes.",
+      "Give me a compliment you have never said out loud.",
+      "Which outfit of mine is your favourite, and why?",
+      "Where was our best kiss, and where should the next one be?",
+      "Whisper one thing you love about me.",
+      "What nickname would you secretly give me?",
+      "Describe our first date from your side in three sentences.",
+      "What is one thing you want to try on a date that we have not done yet?"
+    ]
+  };
+
+  var THISORTHAT = [
+    "Chai or coffee?", "Beach holiday or hill station?", "Home-cooked dinner or street food?",
+    "Movie night at home or a night out?", "Early riser or night owl?", "Text or call?",
+    "Plan everything or go with the flow?", "Sweet or spicy?", "Road trip or flight?",
+    "Summer or monsoon?", "Dance floor or dinner table?", "A surprise gift or a gift you picked?",
+    "Cook together or order in?", "Old Hindi songs or new hits?", "Save or spend?",
+    "Dog or cat?", "Cricket match or a film?", "Sunrise or sunset?",
+    "Big trip once a year or small trips every month?", "Messy and fun or neat and calm?"
+  ];
+
+  var DATEDARES = [
+    "Feed your partner a bite of something while they keep their eyes closed.",
+    "Slow dance to one full song with no phones.",
+    "Take a selfie in the silliest pose you can both hold.",
+    "Write a two-line love note on a napkin and hide it for later.",
+    "Let your partner choose your next profile picture.",
+    "Show each other your favourite photo of the other person.",
+    "Give a 60-second shoulder massage.",
+    "Say three things you love about your partner without repeating yourself.",
+    "Recreate the first photo you ever took together.",
+    "Order dessert for your partner without asking what they want.",
+    "Sing one line of a romantic song to your partner.",
+    "Describe your partner as a movie character and give the film a title.",
+    "Say what you imagine your partner is thinking right now. They confirm or correct you.",
+    "Plan a surprise for this week. Tell your partner the day, not the plan.",
+    "Give your partner a new nickname for the rest of the night.",
+    "Share one thing you are looking forward to doing with them this month."
+  ];
+
+  var NHIE = [
+    "Never have I ever sent a message to the wrong person.",
+    "Never have I ever pretended to be sick to skip work or college.",
+    "Never have I ever fallen asleep in a movie theatre.",
+    "Never have I ever forgotten someone's name right after being introduced.",
+    "Never have I ever cried during a Bollywood movie.",
+    "Never have I ever eaten something that fell on the floor.",
+    "Never have I ever laughed at the wrong moment in a serious meeting.",
+    "Never have I ever checked an ex's social media.",
+    "Never have I ever gone to a wedding without an invite.",
+    "Never have I ever ghosted someone.",
+    "Never have I ever missed a flight or a train.",
+    "Never have I ever argued over a very small amount while bargaining.",
+    "Never have I ever forgotten a close friend's birthday.",
+    "Never have I ever blamed the network for a call I ignored.",
+    "Never have I ever stayed up all night for a match or a show.",
+    "Never have I ever sent a message and regretted it within a minute.",
+    "Never have I ever had a crush on a teacher.",
+    "Never have I ever been caught talking to myself.",
+    "Never have I ever been on a blind date.",
+    "Never have I ever pretended to know a song at karaoke.",
+    "Never have I ever said I was five minutes away without leaving home.",
+    "Never have I ever taken a selfie in public and pretended I was not.",
+    "Never have I ever worn the same clothes two days in a row.",
+    "Never have I ever told a lie about my age.",
+    "Never have I ever left a group chat without saying anything.",
+    "Never have I ever gotten lost with the map open."
+  ];
+
+  var MLT = [
+    "Most likely to be late to their own wedding.",
+    "Most likely to become a millionaire.",
+    "Most likely to get lost with Google Maps open.",
+    "Most likely to cry at a wedding.",
+    "Most likely to say they are on their way while still at home.",
+    "Most likely to forget their phone in a taxi.",
+    "Most likely to be the last one to leave the party.",
+    "Most likely to fall asleep first tonight.",
+    "Most likely to win a dance battle.",
+    "Most likely to adopt five stray dogs.",
+    "Most likely to talk their way out of a traffic challan.",
+    "Most likely to get a tattoo on a whim.",
+    "Most likely to become famous on social media.",
+    "Most likely to skip the plan and order food instead.",
+    "Most likely to pretend to like a gift they hated.",
+    "Most likely to give a speech at the wrong event.",
+    "Most likely to survive a zombie apocalypse.",
+    "Most likely to cook a terrible dinner and serve it proudly.",
+    "Most likely to start a business and tell everyone before it opens.",
+    "Most likely to text an ex and regret it."
+  ];
+
+  var DOD = [
+    "Do your best impression of someone in the room. The group votes, or you sip.",
+    "Speak in a different accent until your next turn, or sip.",
+    "Show the last photo you took, or sip.",
+    "Read out the last message you sent, or sip.",
+    "Do ten jumping jacks, or sip.",
+    "Dance with no music for 20 seconds, or sip.",
+    "Give a toast to the person on your left, or sip.",
+    "Say the alphabet backwards, or sip.",
+    "Hold a plank for 30 seconds, or sip.",
+    "Tell your most embarrassing school story, or sip.",
+    "Swap seats with {p} until the next round, or sip.",
+    "Give {p} a sincere compliment, or sip.",
+    "Name five Bollywood movies with a number in the title in 20 seconds, or sip.",
+    "Talk only in questions until your next turn, or sip.",
+    "Let {p} pick a song for you to dance to, or sip.",
+    "Pretend to be a news anchor and announce the snacks, or sip."
+  ];
+
+  var TRUTHS = [
+    "What is the most embarrassing photo in your phone gallery?",
+    "Who was your first crush?",
+    "What is a lie you tell often?",
+    "What is the worst gift you have ever given someone?",
+    "What is the most childish thing you still do?",
+    "Who in this room is the best dressed?",
+    "Which rule did you break as a teenager?",
+    "What is your guilty pleasure show?",
+    "Whose cooking have you pretended to like?",
+    "What is the silliest fear you have?",
+    "What was your most awkward moment on a date?",
+    "What was the last thing you searched on Google?",
+    "Which app do you spend too much time on?",
+    "What is your most unpopular opinion about food?",
+    "Which friend would you call first at 3 a.m.?",
+    "What is the strangest dream you remember?",
+    "What is something you pretend to understand but do not?",
+    "What was your most embarrassing moment at school?",
+    "What is the longest you have gone without checking your phone?",
+    "What is one thing you would change about your first impression on someone here?"
+  ];
+
+  var DARES = [
+    "Make a dramatic Bollywood entry in five seconds.",
+    "Speak in a robot voice for the next three turns.",
+    "Do ten squats.",
+    "Balance a spoon on your nose for ten seconds.",
+    "Tell a joke. If nobody laughs, tell another.",
+    "Do a catwalk across the room.",
+    "Show your best dance step.",
+    "Name three things you are grateful to {p} for.",
+    "Swap an accessory with {p} for the next round.",
+    "Sing the opening line of a song and let the group guess it.",
+    "Speak only in rhymes until your next turn.",
+    "Act like a monkey until someone laughs.",
+    "Draw a portrait of {p} in 30 seconds and show everyone.",
+    "Say Kachcha papad, pakka papad three times fast.",
+    "Give a 20-second speech on why {p} should host every party.",
+    "Do a freestyle rap about snacks.",
+    "Walk like a penguin to the kitchen and back.",
+    "Pretend to be a news anchor and read out tonight's menu.",
+    "Hold a funny face for 15 seconds while someone takes a photo.",
+    "Use an accent of your choice for the next two turns."
+  ];
+
+  var RAPID = [
+    "Name 5 Indian cities starting with B.",
+    "Name 4 cricketers who have captained India.",
+    "Name 5 things in a kitchen that start with P.",
+    "Name 4 Indian sweets.",
+    "Name 5 colours that are not red, blue or yellow.",
+    "Name 3 songs with rain in them.",
+    "Name 5 animals with four-letter names.",
+    "Name 4 states of India that start with M.",
+    "Name 3 biscuit brands.",
+    "Name 5 things you can do with a pen other than writing.",
+    "Name 5 words that rhyme with day.",
+    "Name 4 movies with Dil in the title.",
+    "Name 5 things you carry in your bag.",
+    "Name 3 rivers in India.",
+    "Name 4 spices.",
+    "Name 5 vegetables.",
+    "Name 4 Indian festivals.",
+    "Name 3 chai flavours.",
+    "Name 4 things you would pack for a train journey.",
+    "Name 5 words that start with S and end with E."
+  ];
+
+  var CHARADES = {
+    bollywood: { name: "Bollywood", words: [
+      "Sholay", "Lagaan", "3 Idiots", "Dangal", "Chak De India", "Munna Bhai MBBS",
+      "Zindagi Na Milegi Dobara", "Kuch Kuch Hota Hai", "Dilwale Dulhania Le Jayenge", "Hera Pheri",
+      "Andaz Apna Apna", "Jab We Met", "Queen", "Dil Chahta Hai", "PK", "Swades",
+      "Gully Boy", "Baahubali", "Devdas", "Taare Zameen Par"
+    ] },
+    everyday: { name: "Everyday life", words: [
+      "Making chai", "Waiting for a lift", "Bargaining with a sabziwala", "Stuck in traffic",
+      "Taking a selfie", "Rolling a roti", "Fixing a bad mobile network", "Looking for the lost remote",
+      "Ironing clothes", "Cracking a coconut", "Riding an auto", "Flying a kite",
+      "Playing gully cricket", "Washing clothes by hand", "Applying mehendi", "Getting ready for a wedding",
+      "Eating pani puri", "Cutting onions", "Chasing a bus", "Cooking on a tawa"
+    ] },
+    things: { name: "Animals and things", words: [
+      "Elephant", "Peacock", "Monkey", "Camel", "Tiger", "Cow", "Snake", "Crab", "Kangaroo", "Penguin",
+      "Ceiling fan", "Pressure cooker", "Mixer grinder", "Aeroplane", "Scooter", "Umbrella",
+      "Remote control", "Mobile charger", "Alarm clock", "Cricket bat"
+    ] }
+  };
+
+  var NICK = {
+    1: "Kelly's eye", 2: "One little duck", 7: "Lucky seven", 8: "Garden gate", 11: "Legs eleven",
+    13: "Unlucky for some", 21: "Key of the door", 22: "Two little ducks", 66: "Clickety click", 90: "Top of the shop"
+  };
+
+  var GAMES = {
+    tambola: { name: "Tambola Caller", blurb: "Calls the numbers from 1 to 90 so nobody needs paper slips.", meta: "3 or more players · 30 min", kind: "tambola" },
+    charades: { name: "Dumb Charades", blurb: "Act it out without speaking. Bollywood, everyday life or animals.", meta: "4 or more players · 15 min", kind: "charades" },
+    antakshari: { name: "Antakshari Letters", blurb: "Gives each team a starting letter and a clock for the next song.", meta: "4 or more players · 20 min", kind: "antakshari" },
+    kittyqa: { name: "Kitty Questions", blurb: "Easy questions that start long conversations at the table.", meta: "Any group · 20 min", kind: "deck", label: "Question", turns: true, cards: KITTYQ,
+      rule: "Read the card aloud. The player in turn answers first, then anyone can add their own." },
+    tod: { name: "Truth or Dare", blurb: "Pick truth or dare when it is your turn. Mild and friendly.", meta: "3 or more players · 20 min", kind: "tod" },
+    couplequestions: { name: "Questions for Two", blurb: "Three levels, from easy warm-ups to the questions that matter.", meta: "2 players · 20 min", kind: "deck", label: "Question", levels: COUPLE,
+      rule: "Take turns reading a card. Both of you answer. No phones and no rush." },
+    thisorthat: { name: "This or That", blurb: "Quick choices that show how alike you are.", meta: "2 players · 10 min", kind: "deck", label: "This or that", cards: THISORTHAT,
+      rule: "Count to three and both say your pick together. Then explain why." },
+    datedares: { name: "Date Night Dares", blurb: "Small things to do together, from silly to sweet.", meta: "2 players · 15 min", kind: "deck", label: "Dare", cards: DATEDARES,
+      rule: "Draw a card and do it together. Skip any card that does not feel right." },
+    nhie: { name: "Never Have I Ever", blurb: "Read a card. Anyone who has done it takes a sip.", meta: "4 or more players · 20 min", kind: "deck", label: "Never have I ever", cards: NHIE, adult: true, hint: "Take a sip if you have.",
+      rule: "Read the card aloud. Everyone who has done it takes a sip." },
+    mlt: { name: "Most Likely To", blurb: "Everyone points at the friend who fits the card.", meta: "4 or more players · 20 min", kind: "deck", label: "Most likely to", cards: MLT, adult: true, hint: "Most fingers pointed at them takes a sip.",
+      rule: "Read the card. On three, everyone points. The person with the most fingers takes a sip." },
+    dod: { name: "Dare or Sip", blurb: "Do the dare or take a sip. Water counts.", meta: "3 or more players · 20 min", kind: "deck", label: "Dare", turns: true, cards: DOD, adult: true,
+      rule: "Do the dare or take a sip. Water counts as a sip." },
+    spin: { name: "Spin to Pick", blurb: "Spins a pointer to choose who goes next or who answers.", meta: "2 or more players · any time", kind: "spin" },
+    rapid: { name: "Rapid Fire", blurb: "Name things against a 10 second clock.", meta: "3 or more players · 15 min", kind: "deck", label: "Rapid fire", turns: true, cards: RAPID,
+      rule: "Read the card aloud and start a 10 second clock. Miss it and pass the phone." }
+  };
+
+  var CATS = {
+    kitty: { name: "Kitty Party", blurb: "Tea, snacks and games for a table of friends.", games: ["tambola", "charades", "antakshari", "kittyqa", "tod"] },
+    couple: { name: "Couple Games", blurb: "Two people, one phone, better conversations.", games: ["couplequestions", "thisorthat", "datedares"] },
+    drinks: { name: "Drinking Games", blurb: "Sip games for adults. Water counts.", games: ["nhie", "mlt", "dod", "spin"], adult: true },
+    house: { name: "House Party", blurb: "Loud, quick and fine with ten people.", games: ["charades", "tod", "antakshari", "spin", "rapid"] }
+  };
+  var ORDER = ["kitty", "couple", "drinks", "house"];
+
+  /* ---------- state and helpers ---------- */
+  var app = document.getElementById("app");
+  var state = { players: [], turn: 0, adult: false, ctx: null };
+  var cleanup = null;
+  var actx = null;
+
+  try {
+    var saved = JSON.parse(localStorage.getItem("playroom.players") || "[]");
+    if (Array.isArray(saved)) {
+      state.players = saved.filter(function (s) { return typeof s === "string" && s; }).slice(0, 12);
+    }
+  } catch (e) {}
+  try { state.adult = sessionStorage.getItem("playroom.adult") === "1"; } catch (e) {}
+
+  function savePlayers() {
+    try { localStorage.setItem("playroom.players", JSON.stringify(state.players)); } catch (e) {}
+  }
+  function el(tag, attrs, kids) {
+    var n = document.createElement(tag);
+    if (attrs) {
+      Object.keys(attrs).forEach(function (k) {
+        var v = attrs[k];
+        if (v == null || v === false) return;
+        if (k === "class") n.className = v;
+        else if (k.slice(0, 2) === "on") n.addEventListener(k.slice(2), v);
+        else n.setAttribute(k, v === true ? "" : v);
+      });
+    }
+    (kids || []).forEach(function (c) {
+      if (c == null || c === false) return;
+      n.appendChild(typeof c === "string" ? document.createTextNode(c) : c);
+    });
+    return n;
+  }
+  function shuffle(a) {
+    a = a.slice();
+    for (var i = a.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var t = a[i]; a[i] = a[j]; a[j] = t;
+    }
+    return a;
+  }
+  function cycler(arr) {
+    var order = [], pos = 0;
+    function refill() { order = shuffle(arr); pos = 0; }
+    refill();
+    return function () { if (pos >= order.length) refill(); return order[pos++]; };
+  }
+  function curName() { return state.players.length ? state.players[state.turn % state.players.length] : null; }
+  function otherName() {
+    var n = state.players.length;
+    if (n < 2) return "someone in the room";
+    var cur = state.turn % n, j;
+    do { j = Math.floor(Math.random() * n); } while (j === cur);
+    return state.players[j];
+  }
+  function fmt(s) { var m = Math.floor(s / 60), r = s % 60; return m + ":" + (r < 10 ? "0" : "") + r; }
+  function reduce() { return !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches); }
+  function beep() {
+    try {
+      actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+      var o = actx.createOscillator(), g = actx.createGain();
+      o.frequency.value = 880; g.gain.value = 0.08;
+      o.connect(g); g.connect(actx.destination);
+      o.start(); o.stop(actx.currentTime + 0.3);
+    } catch (e) {}
+    try { if (navigator.vibrate) navigator.vibrate(200); } catch (e) {}
+  }
+  function colorStyle(cat) { return "--c:var(--" + cat + ");--on:var(--" + cat + "-on)"; }
+  function catFor(gid) {
+    if (state.ctx && CATS[state.ctx] && CATS[state.ctx].games.indexOf(gid) > -1) return state.ctx;
+    for (var i = 0; i < ORDER.length; i++) if (CATS[ORDER[i]].games.indexOf(gid) > -1) return ORDER[i];
+    return "kitty";
+  }
+
+  /* ---------- shared components ---------- */
+  function playersEditor(onchange) {
+    var box = el("div", { class: "stack" });
+    function draw() {
+      box.textContent = "";
+      var input = el("input", { id: "pname", type: "text", maxlength: "16", placeholder: "Add a name", autocomplete: "off", "aria-label": "Player name" });
+      var form = el("form", { class: "addrow" }, [input, el("button", { class: "btn small-btn", type: "submit" }, ["Add"])]);
+      form.addEventListener("submit", function (e) {
+        e.preventDefault();
+        var v = input.value.trim();
+        if (!v || state.players.length >= 12) return;
+        var dup = state.players.some(function (p) { return p.toLowerCase() === v.toLowerCase(); });
+        if (!dup) { state.players.push(v); savePlayers(); }
+        input.value = "";
+        draw();
+        if (onchange) onchange();
+      });
+      box.appendChild(form);
+      if (state.players.length) {
+        var list = el("div", { class: "chips" });
+        state.players.forEach(function (p, i) {
+          list.appendChild(el("span", { class: "pchip" }, [p, el("button", { type: "button", "aria-label": "Remove " + p, onclick: function () {
+            state.players.splice(i, 1); savePlayers(); draw(); if (onchange) onchange();
+          } }, ["×"])]));
+        });
+        box.appendChild(list);
+      }
+    }
+    draw();
+    return box;
+  }
+  function topbar(backHash, backLabel) {
+    return el("div", { class: "bar" }, [el("a", { class: "back", href: "#" + backHash }, ["← " + backLabel])]);
+  }
+  function turnLine() {
+    var n = curName();
+    return n ? el("p", { class: "score" }, ["Turn: " + n]) : null;
+  }
+
+  /* ---------- game screens ---------- */
+  function deckScreen(g, root) {
+    var levels = g.levels ? Object.keys(g.levels) : null;
+    var level = levels ? levels[0] : null;
+    var order = [], shown = [], pos = 0;
+    var wrap = el("div", { class: "stack" });
+    root.appendChild(wrap);
+
+    function pool() { return levels ? g.levels[level] : g.cards; }
+    function make(text) { return { text: text.replace(/\{p\}/g, otherName()), who: g.turns ? curName() : null }; }
+    function reset() { order = shuffle(pool()); shown = []; pos = -1; forward(); }
+    function forward() {
+      if (pos + 1 < shown.length) { pos++; }
+      else if (shown.length < order.length) {
+        if (g.turns && shown.length > 0) state.turn++;
+        shown.push(make(order[shown.length]));
+        pos = shown.length - 1;
+      } else { pos = shown.length; }
+      draw();
+    }
+    function back() { if (pos > 0) { pos--; draw(); } }
+    function draw() {
+      wrap.textContent = "";
+      if (levels) {
+        var tabs = el("div", { class: "chips" });
+        levels.forEach(function (l) {
+          tabs.appendChild(el("button", { class: "chip", type: "button", "aria-pressed": String(l === level), onclick: function () { level = l; reset(); } }, [l]));
+        });
+        wrap.appendChild(tabs);
+      }
+      var end = pos >= shown.length;
+      var card = el("div", { class: "card", "aria-live": "polite" });
+      if (end) {
+        card.appendChild(el("span", { class: "tag" }, ["Deck finished"]));
+        card.appendChild(el("p", { class: "card-text" }, ["That was all " + order.length + " cards."]));
+        card.appendChild(el("p", { class: "card-foot" }, ["Shuffle to play again in a new order."]));
+      } else {
+        var c = shown[pos];
+        card.appendChild(el("span", { class: "tag" }, [g.label + " · " + (pos + 1) + " of " + order.length]));
+        card.appendChild(el("p", { class: "card-text" }, [c.text]));
+        var foot = [];
+        if (c.who) foot.push("Turn: " + c.who);
+        if (g.hint) foot.push(g.hint);
+        card.appendChild(el("p", { class: "card-foot" }, [foot.join(" · ")]));
+      }
+      wrap.appendChild(card);
+      var back_ = el("button", { class: "btn ghost", type: "button", onclick: back }, ["Back"]);
+      if (pos <= 0) back_.disabled = true;
+      wrap.appendChild(el("div", { class: "actions" }, [
+        back_,
+        el("button", { class: "btn", type: "button", onclick: end ? reset : forward }, [end ? "Shuffle again" : "Next card"])
+      ]));
+    }
+    reset();
+  }
+
+  function todScreen(root) {
+    var truth = cycler(TRUTHS), dare = cycler(DARES);
+    var cur = null;
+    var wrap = el("div", { class: "stack" });
+    root.appendChild(wrap);
+    function pick(kind) {
+      var t = (kind === "truth" ? truth() : dare()).replace(/\{p\}/g, otherName());
+      cur = { kind: kind, text: t, who: curName() };
+      draw();
+    }
+    function draw() {
+      wrap.textContent = "";
+      var who = cur ? cur.who : curName();
+      var card = el("div", { class: "card", "aria-live": "polite" });
+      if (!cur) {
+        card.appendChild(el("span", { class: "tag" }, ["Your turn"]));
+        card.appendChild(el("p", { class: "card-text" }, [who ? who + ", pick one." : "Pick one."]));
+        card.appendChild(el("p", { class: "card-foot" }, ["Skip any card you are not comfortable with."]));
+        wrap.appendChild(card);
+        wrap.appendChild(el("div", { class: "actions" }, [
+          el("button", { class: "btn", type: "button", onclick: function () { pick("truth"); } }, ["Truth"]),
+          el("button", { class: "btn alt", type: "button", onclick: function () { pick("dare"); } }, ["Dare"])
+        ]));
+      } else {
+        card.appendChild(el("span", { class: "tag" }, [cur.kind === "truth" ? "Truth" : "Dare"]));
+        card.appendChild(el("p", { class: "card-text" }, [cur.text]));
+        card.appendChild(el("p", { class: "card-foot" }, [cur.who ? "Turn: " + cur.who : ""]));
+        wrap.appendChild(card);
+        wrap.appendChild(el("div", { class: "actions" }, [
+          el("button", { class: "btn ghost", type: "button", onclick: function () { pick(cur.kind); } }, ["Swap card"]),
+          el("button", { class: "btn", type: "button", onclick: function () { state.turn++; cur = null; draw(); } }, ["Done, next player"])
+        ]));
+      }
+    }
+    draw();
+  }
+
+  function tambolaScreen(root) {
+    var pool = shuffle(Array.apply(null, Array(90)).map(function (_, i) { return i + 1; }));
+    var called = [], auto = null, speak = false, armTimer = null, armed = false;
+    var cells = {};
+
+    var ball = el("div", { class: "ball", "aria-live": "polite" }, ["–"]);
+    var nick = el("p", { class: "nick" }, ["Tap Call next number to start."]);
+    var count = el("p", { class: "score" }, ["0 of 90 called"]);
+    var recent = el("div", { class: "recent" });
+    var board = el("div", { class: "board" });
+    for (var n = 1; n <= 90; n++) { cells[n] = el("div", { class: "cell" }, [String(n)]); board.appendChild(cells[n]); }
+
+    function say(n) {
+      if (!speak) return;
+      try {
+        window.speechSynthesis.cancel();
+        var t = n > 9 ? n + ". " + String(n).split("").join(" ") : String(n);
+        window.speechSynthesis.speak(new SpeechSynthesisUtterance(t));
+      } catch (e) {}
+    }
+    function stopAuto() {
+      if (auto) { clearInterval(auto); auto = null; }
+      autoBtn.setAttribute("aria-pressed", "false");
+    }
+    function call() {
+      if (!pool.length) { nick.textContent = "All 90 numbers have been called."; stopAuto(); return; }
+      var prev = called[called.length - 1];
+      if (prev) cells[prev].classList.remove("last");
+      var v = pool.pop();
+      called.push(v);
+      cells[v].classList.add("on", "last");
+      ball.textContent = String(v);
+      nick.textContent = NICK[v] || "Number " + v;
+      count.textContent = called.length + " of 90 called";
+      recent.textContent = "";
+      called.slice(-7, -1).reverse().forEach(function (x) { recent.appendChild(el("span", null, [String(x)])); });
+      say(v);
+    }
+    var autoBtn = el("button", { class: "chip", type: "button", "aria-pressed": "false", onclick: function () {
+      if (auto) { stopAuto(); return; }
+      autoBtn.setAttribute("aria-pressed", "true");
+      call();
+      auto = setInterval(call, 8000);
+    } }, ["Auto-call every 8 seconds"]);
+    var speakBtn = el("button", { class: "chip", type: "button", "aria-pressed": "false", onclick: function () {
+      speak = !speak;
+      speakBtn.setAttribute("aria-pressed", String(speak));
+    } }, ["Read numbers aloud"]);
+    var resetBtn = el("button", { class: "btn ghost", type: "button", onclick: function () {
+      if (!armed) {
+        armed = true; resetBtn.textContent = "Tap again to reset";
+        armTimer = setTimeout(function () { armed = false; resetBtn.textContent = "Reset game"; }, 3000);
+        return;
+      }
+      clearTimeout(armTimer); armed = false; resetBtn.textContent = "Reset game";
+      stopAuto();
+      pool = shuffle(Array.apply(null, Array(90)).map(function (_, i) { return i + 1; }));
+      called = [];
+      Object.keys(cells).forEach(function (k) { cells[k].className = "cell"; });
+      ball.textContent = "–"; nick.textContent = "Tap Call next number to start.";
+      count.textContent = "0 of 90 called"; recent.textContent = "";
+    } }, ["Reset game"]);
+
+    setCleanup(function () {
+      stopAuto(); clearTimeout(armTimer);
+      try { window.speechSynthesis.cancel(); } catch (e) {}
+    });
+
+    root.appendChild(el("div", { class: "stack" }, [
+      el("div", { class: "callrow" }, [ball, el("div", null, [nick, count])]),
+      el("div", { class: "actions" }, [el("button", { class: "btn", type: "button", onclick: call }, ["Call next number"])]),
+      el("div", { class: "chips" }, [autoBtn, speakBtn]),
+      el("div", { class: "stack" }, [el("p", { class: "label" }, ["Called before"]), recent]),
+      board,
+      el("div", { class: "actions" }, [resetBtn])
+    ]));
+  }
+
+  function charadesScreen(root) {
+    var catKey = "bollywood", secs = 60, phase = "setup", score = 0, got = [];
+    var drawWord = null, word = "", endAt = 0, tid = null;
+    var timerEl = null, wordEl = null, scoreEl = null;
+    var wrap = el("div", { class: "stack" });
+    root.appendChild(wrap);
+    setCleanup(function () { clearInterval(tid); });
+
+    function nextWord() { word = drawWord(); }
+    function tick() {
+      var left = Math.max(0, Math.ceil((endAt - Date.now()) / 1000));
+      if (timerEl) timerEl.textContent = fmt(left);
+      if (left <= 0) { clearInterval(tid); beep(); phase = "done"; show(); }
+    }
+    function startPlay() {
+      score = 0; got = []; nextWord();
+      endAt = Date.now() + secs * 1000;
+      phase = "play"; show();
+      clearInterval(tid); tid = setInterval(tick, 200);
+    }
+    function show() {
+      wrap.textContent = "";
+      var who = curName();
+      if (phase === "setup") {
+        var cats = el("div", { class: "chips" });
+        Object.keys(CHARADES).forEach(function (k) {
+          cats.appendChild(el("button", { class: "chip", type: "button", "aria-pressed": String(k === catKey), onclick: function () { catKey = k; show(); } }, [CHARADES[k].name]));
+        });
+        var times = el("div", { class: "chips" });
+        [30, 60, 90].forEach(function (s) {
+          times.appendChild(el("button", { class: "chip", type: "button", "aria-pressed": String(s === secs), onclick: function () { secs = s; show(); } }, [s + " seconds"]));
+        });
+        wrap.appendChild(el("div", { class: "panel" }, [
+          el("p", { class: "label" }, ["Category"]), cats,
+          el("p", { class: "label" }, ["Time per turn"]), times
+        ]));
+        wrap.appendChild(el("div", { class: "actions" }, [el("button", { class: "btn", type: "button", onclick: function () {
+          drawWord = cycler(CHARADES[catKey].words); phase = "ready"; show();
+        } }, ["Start"])]));
+      } else if (phase === "ready") {
+        wrap.appendChild(el("div", { class: "card" }, [
+          el("span", { class: "tag" }, ["Next up"]),
+          el("p", { class: "card-text" }, [who ? who + " acts." : "Choose who acts."]),
+          el("p", { class: "card-foot" }, ["Everyone else guesses. Tap start once the actor holds the phone."])
+        ]));
+        wrap.appendChild(el("div", { class: "actions" }, [
+          el("button", { class: "btn ghost", type: "button", onclick: function () { phase = "setup"; show(); } }, ["Change settings"]),
+          el("button", { class: "btn", type: "button", onclick: startPlay }, ["Show word and start"])
+        ]));
+      } else if (phase === "play") {
+        timerEl = el("div", { class: "timer" }, [fmt(secs)]);
+        wordEl = el("p", { class: "card-text", "aria-live": "polite" }, [word]);
+        scoreEl = el("p", { class: "score" }, ["Guessed: " + score]);
+        wrap.appendChild(el("div", { class: "card" }, [
+          el("span", { class: "tag" }, [CHARADES[catKey].name]), wordEl,
+          el("div", { class: "stack" }, [timerEl, scoreEl])
+        ]));
+        wrap.appendChild(el("div", { class: "actions" }, [
+          el("button", { class: "btn ghost", type: "button", onclick: function () { nextWord(); wordEl.textContent = word; } }, ["Pass"]),
+          el("button", { class: "btn", type: "button", onclick: function () {
+            score++; got.push(word); nextWord(); wordEl.textContent = word; scoreEl.textContent = "Guessed: " + score;
+          } }, ["Got it"])
+        ]));
+        tick();
+      } else {
+        wrap.appendChild(el("div", { class: "card" }, [
+          el("span", { class: "tag" }, ["Time is up"]),
+          el("p", { class: "card-text" }, [who ? who + " got " + score + "." : "Score: " + score + "."]),
+          el("p", { class: "card-foot" }, [got.length ? "Guessed: " + got.join(", ") : "Nothing guessed this round."])
+        ]));
+        wrap.appendChild(el("div", { class: "actions" }, [
+          el("button", { class: "btn ghost", type: "button", onclick: function () { phase = "setup"; show(); } }, ["Change settings"]),
+          el("button", { class: "btn", type: "button", onclick: function () { state.turn++; phase = "ready"; show(); } }, ["Next player"])
+        ]));
+      }
+    }
+    show();
+  }
+
+  function antakshariScreen(root) {
+    var nextLetter = cycler("ABCDGHJKLMNPRSTV".split(""));
+    var letter = nextLetter(), tid = null, running = false, endAt = 0;
+    var letterEl = el("div", { class: "bigletter", "aria-live": "polite" }, [letter]);
+    var timerEl = el("div", { class: "timer" }, ["0:30"]);
+    var turnEl = el("p", { class: "score" }, [curName() ? "Turn: " + curName() : ""]);
+    var startBtn = el("button", { class: "btn ghost", type: "button", onclick: startTimer }, ["Start 30 second clock"]);
+    setCleanup(function () { clearInterval(tid); });
+
+    function tick() {
+      var left = Math.max(0, Math.ceil((endAt - Date.now()) / 1000));
+      timerEl.textContent = fmt(left);
+      if (left <= 0) { clearInterval(tid); running = false; beep(); startBtn.textContent = "Start 30 second clock"; }
+    }
+    function startTimer() {
+      clearInterval(tid);
+      endAt = Date.now() + 30000; running = true;
+      startBtn.textContent = "Restart clock";
+      tick(); tid = setInterval(tick, 200);
+    }
+    function next() {
+      clearInterval(tid); running = false;
+      state.turn++;
+      letter = nextLetter(); letterEl.textContent = letter;
+      timerEl.textContent = "0:30"; startBtn.textContent = "Start 30 second clock";
+      turnEl.textContent = curName() ? "Turn: " + curName() : "";
+    }
+    root.appendChild(el("div", { class: "stack" }, [
+      el("div", { class: "card" }, [
+        el("span", { class: "tag" }, ["Sing a song starting with"]),
+        letterEl,
+        el("div", { class: "stack" }, [timerEl, turnEl])
+      ]),
+      el("div", { class: "actions" }, [startBtn, el("button", { class: "btn", type: "button", onclick: next }, ["Next letter"])])
+    ]));
+  }
+
+  function spinScreen(root) {
+    var rot = 0, busy = false, timer = null;
+    setCleanup(function () { clearTimeout(timer); });
+    function build() {
+      root.textContent = "";
+      var n = state.players.length;
+      if (n < 2) {
+        root.appendChild(el("div", { class: "stack" }, [
+          el("p", { class: "rule" }, ["Add at least two names to spin."]),
+          playersEditor(build)
+        ]));
+        return;
+      }
+      var wheel = el("div", { class: "wheel" + (n > 8 ? " dense" : "") });
+      var names = [];
+      state.players.forEach(function (p, i) {
+        var a = i * 2 * Math.PI / n;
+        var s = el("span", { class: "wname", style: "left:" + (50 + 38 * Math.sin(a)).toFixed(2) + "%;top:" + (50 - 38 * Math.cos(a)).toFixed(2) + "%" }, [p]);
+        names.push(s); wheel.appendChild(s);
+      });
+      var arrow = el("div", { class: "arrow" });
+      wheel.appendChild(arrow);
+      wheel.appendChild(el("div", { class: "hub" }));
+      var result = el("p", { class: "result", "aria-live": "polite" }, ["Tap spin to pick one person."]);
+      var btn = el("button", { class: "btn", type: "button" }, ["Spin"]);
+      btn.addEventListener("click", function () {
+        if (busy) return;
+        busy = true; btn.disabled = true;
+        names.forEach(function (x) { x.classList.remove("win"); });
+        result.textContent = "…";
+        var target = Math.floor(Math.random() * n), seg = 360 / n;
+        var m = ((rot % 360) + 360) % 360;
+        var delta = (((target * seg - m) % 360) + 360) % 360;
+        rot += 360 * 5 + delta;
+        arrow.style.transform = "rotate(" + rot + "deg)";
+        timer = setTimeout(function () {
+          names[target].classList.add("win");
+          result.textContent = state.players[target] + ", you are up.";
+          busy = false; btn.disabled = false;
+        }, reduce() ? 200 : 3800);
+      });
+      root.appendChild(el("div", { class: "stack" }, [
+        el("div", { class: "wheelbox" }, [wheel]),
+        result,
+        el("div", { class: "actions" }, [btn]),
+        el("div", { class: "panel" }, [el("p", { class: "label" }, ["Players"]), playersEditor(build)])
+      ]));
+    }
+    build();
+  }
+
+  function setCleanup(fn) { cleanup = fn; }
+
+  /* ---------- views ---------- */
+  function homeView() {
+    var tiles = el("div", { class: "tiles" });
+    ORDER.forEach(function (k) {
+      var c = CATS[k];
+      tiles.appendChild(el("a", { class: "tile", href: "#" + k, style: "--tc:var(--" + k + ");--ton:var(--" + k + "-on)" }, [
+        el("div", { class: "stack", style: "gap:8px" }, [el("h3", null, [c.name]), el("p", null, [c.blurb])]),
+        el("span", { class: "count" }, [c.games.length + " games →"])
+      ]));
+    });
+    return el("div", { class: "wrap" }, [
+      el("div", { class: "stack", style: "gap:12px" }, [
+        el("div", { class: "dots", "aria-hidden": "true" }, [el("i"), el("i"), el("i"), el("i")]),
+        el("h1", { class: "wordmark" }, ["Playroom"]),
+        el("p", { class: "lede" }, ["Party games for one phone and a few friends."])
+      ]),
+      el("div", { class: "panel" }, [
+        el("p", { class: "label" }, ["Who is playing"]),
+        el("p", { class: "small" }, ["Optional. Names are used for turns and dares. They stay on this phone."]),
+        playersEditor()
+      ]),
+      el("div", { class: "stack" }, [el("p", { class: "label" }, ["Pick a mood"]), tiles]),
+      el("p", { class: "small" }, ["This version is pass-the-phone: everyone plays on one screen. Room codes, so friends can join from their own phones, come next."])
+    ]);
+  }
+
+  function gateView(backHash) {
+    return el("div", { class: "wrap", style: colorStyle("drinks") }, [
+      topbar(backHash, "Back"),
+      el("h1", { class: "title" }, ["Adults only"]),
+      el("p", { class: "rule" }, ["These games involve alcohol. Continue only if you are of legal drinking age where you live. The legal age is different in each Indian state."]),
+      el("div", { class: "notice" }, ["Sipping is always optional. Water counts. Nobody should drink more than they want, and nobody should drive after drinking."]),
+      el("div", { class: "actions" }, [
+        el("a", { class: "btn ghost", href: "#" + backHash, style: "text-decoration:none" }, ["Take me back"]),
+        el("button", { class: "btn", type: "button", onclick: function () {
+          state.adult = true;
+          try { sessionStorage.setItem("playroom.adult", "1"); } catch (e) {}
+          render();
+        } }, ["I am of legal drinking age"])
+      ])
+    ]);
+  }
+
+  function categoryView(key) {
+    var c = CATS[key];
+    state.ctx = key;
+    if (c.adult && !state.adult) return gateView("");
+    var rows = el("div", { class: "rows" });
+    c.games.forEach(function (gid) {
+      var g = GAMES[gid];
+      rows.appendChild(el("a", { class: "row", href: "#game-" + gid }, [
+        el("h3", null, [g.name]),
+        el("p", null, [g.blurb]),
+        el("span", { class: "meta" }, [g.meta]),
+        el("span", { class: "go", "aria-hidden": "true" }, ["→"])
+      ]));
+    });
+    return el("div", { class: "wrap", style: colorStyle(key) }, [
+      topbar("", "All games"),
+      el("div", { class: "stack", style: "gap:8px" }, [el("h1", { class: "title" }, [c.name]), el("p", { class: "lede" }, [c.blurb])]),
+      rows
+    ]);
+  }
+
+  function gameView(gid) {
+    var g = GAMES[gid];
+    if (!g) { location.hash = ""; return el("div"); }
+    var cat = catFor(gid);
+    if (g.adult && !state.adult) return gateView(cat);
+    var body = el("div", { class: "stack" });
+    var parts = [
+      topbar(cat, CATS[cat].name),
+      el("div", { class: "stack", style: "gap:8px" }, [el("h1", { class: "title" }, [g.name])])
+    ];
+    if (g.rule) parts.push(el("p", { class: "rule" }, [g.rule]));
+    if (g.adult) parts.push(el("div", { class: "notice" }, ["Sipping is optional. Water counts. Nobody drinks more than they want."]));
+    parts.push(body);
+    if (g.kind === "deck") deckScreen(g, body);
+    else if (g.kind === "tod") todScreen(body);
+    else if (g.kind === "tambola") tambolaScreen(body);
+    else if (g.kind === "charades") charadesScreen(body);
+    else if (g.kind === "antakshari") antakshariScreen(body);
+    else if (g.kind === "spin") spinScreen(body);
+    return el("div", { class: "wrap", style: colorStyle(cat) }, parts);
+  }
+
+  function render() {
+    if (cleanup) { try { cleanup(); } catch (e) {} cleanup = null; }
+    app.textContent = "";
+    var r = location.hash.replace("#", "") || "home";
+    var view;
+    if (CATS[r]) view = categoryView(r);
+    else if (r.indexOf("game-") === 0) view = gameView(r.slice(5));
+    else view = homeView();
+    app.appendChild(view);
+    try { window.scrollTo(0, 0); } catch (e) {}
+  }
+
+  window.addEventListener("hashchange", render);
+  render();
+})();
+</script>
+
+</html>
