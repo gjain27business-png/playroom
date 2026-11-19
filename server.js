@@ -18,6 +18,20 @@ const server = http.createServer((req, res) => {
     res.writeHead(200, { "content-type": "text/plain" });
     return res.end("ok");
   }
+  if (url === "/og.png") {
+    return fs.readFile(path.join(__dirname, "public", "og.png"), (err, buf) => {
+      if (err) {
+        res.writeHead(404, { "content-type": "text/plain" });
+        return res.end("Not found");
+      }
+      res.writeHead(200, { "content-type": "image/png", "cache-control": "public, max-age=86400" });
+      res.end(buf);
+    });
+  }
+  if (url === "/robots.txt") {
+    res.writeHead(200, { "content-type": "text/plain" });
+    return res.end("User-agent: *\nAllow: /\n");
+  }
   if (url === "/" || url === "/index.html") {
     return fs.readFile(INDEX, (err, buf) => {
       if (err) {
