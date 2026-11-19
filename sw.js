@@ -1,6 +1,6 @@
 /* Playroom service worker: lets the installed app open offline.
    Pages are fetched fresh first and fall back to the saved copy; icons and fonts come from the saved copy first. */
-const CACHE = "playroom-v1";
+const CACHE = "ot-v2";
 const SHELL = ["/", "/manifest.webmanifest", "/icon-192.png", "/icon-512.png"];
 
 self.addEventListener("install", (e) => {
