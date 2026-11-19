@@ -23,8 +23,75 @@ const STATIC = {
   "/sw.js": ["sw.js", "text/javascript; charset=utf-8", "no-cache"]
 };
 
+/* ---------- optional AI referee ----------
+   Switched on only when ANTHROPIC_API_KEY is set on the Render service. */
+const AI_KEY = process.env.ANTHROPIC_API_KEY || "";
+const AI_MODEL = process.env.OT_MODEL || "claude-haiku-5-5";
+const askHits = new Map();
+function cors(req, res) {
+  const o = req.headers.origin;
+  if (o && originOk(o)) {
+    res.setHeader("access-control-allow-origin", o);
+    res.setHeader("vary", "origin");
+    res.setHeader("access-control-allow-headers", "content-type");
+    res.setHeader("access-control-allow-methods", "GET, POST, OPTIONS");
+  }
+}
+function tooMany(ip) {
+  const now = Date.now(), list = (askHits.get(ip) || []).filter((t) => now - t < 60000);
+  list.push(now); askHits.set(ip, list);
+  if (askHits.size > 5000) askHits.clear();
+  return list.length > 15;
+}
+function clip(x, n) { return typeof x === "string" ? x.replace(/[\u0000-\u001f]/g, " ").slice(0, n) : ""; }
+function handleAsk(req, res) {
+  cors(req, res);
+  if (req.method === "OPTIONS") { res.writeHead(204); return res.end(); }
+  if (req.method === "GET") { res.writeHead(200, { "content-type": "application/json" }); return res.end(JSON.stringify({ on: !!AI_KEY })); }
+  if (req.method !== "POST") { res.writeHead(405); return res.end(); }
+  if (!AI_KEY) { res.writeHead(503, { "content-type": "application/json" }); return res.end(JSON.stringify({ off: true })); }
+  const ip = String(req.headers["x-forwarded-for"] || req.socket.remoteAddress || "").split(",")[0].trim();
+  if (tooMany(ip)) { res.writeHead(429, { "content-type": "application/json" }); return res.end(JSON.stringify({ answer: "Easy, too many questions. Give me a minute." })); }
+  let raw = "";
+  req.on("data", (c) => { raw += c; if (raw.length > 6000) req.destroy(); });
+  req.on("end", async () => {
+    let b;
+    try { b = JSON.parse(raw); } catch (e) { res.writeHead(400); return res.end(); }
+    const players = Array.isArray(b.players) ? b.players.slice(0, 12).map((p) => clip(p, 16)).join(", ") : "";
+    const history = Array.isArray(b.history) ? b.history.slice(-6).map((h) => ({ role: h && h.role === "assistant" ? "assistant" : "user", content: clip(h && h.text, 300) || "…" })) : [];
+    while (history.length && history[0].role !== "user") history.shift();
+    const merged = [];
+    for (const m of history) { if (merged.length && merged[merged.length - 1].role === m.role) merged[merged.length - 1].content += "\n" + m.content; else merged.push(m); }
+    if (merged.length && merged[merged.length - 1].role === "user") merged.pop();
+    const system = [
+      "You are " + clip(b.host, 30) + ", the referee and host of OT, a party game app for groups of friends in India.",
+      "Current game: " + (clip(b.game, 60) || "none") + ". Rules: " + clip(b.rule, 400),
+      "On screen now: " + (clip(b.card, 300) || "nothing") + ". Players: " + (players || "unknown") + ".",
+      "Answer rule questions, settle disputes fairly and decisively, and suggest tie-breakers. Stay in character: playful, warm, a little sassy.",
+      "Keep answers under 60 words. Plain text, no markdown. Never invent scores you can't see.",
+      "Consent first: anyone may skip any card. " + (b.adult ? "Sipping is always optional, water counts, never encourage heavy drinking, and nobody drives after drinking. " : "") + "If someone seems unwell or unsafe, tell them to stop the game, help the person, and call 112 in an emergency.",
+      "Keep it party-appropriate: no sexual content, no hate, no harassment of a player."
+    ].join("\n");
+    try {
+      const r = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: { "content-type": "application/json", "x-api-key": AI_KEY, "anthropic-version": "2023-06-01" },
+        body: JSON.stringify({ model: AI_MODEL, max_tokens: 220, system, messages: merged.concat([{ role: "user", content: clip(b.question, 300) || "Help" }]) })
+      });
+      const j = await r.json();
+      const answer = j && Array.isArray(j.content) ? j.content.filter((c) => c.type === "text").map((c) => c.text).join(" ").trim() : "";
+      res.writeHead(200, { "content-type": "application/json" });
+      res.end(JSON.stringify({ answer: answer.slice(0, 600) || null }));
+    } catch (e) {
+      res.writeHead(502, { "content-type": "application/json" });
+      res.end(JSON.stringify({ answer: null }));
+    }
+  });
+}
+
 const server = http.createServer((req, res) => {
   const url = (req.url || "/").split("?")[0];
+  if (url === "/ask") return handleAsk(req, res);
   if (url === "/healthz") {
     res.writeHead(200, { "content-type": "text/plain", "access-control-allow-origin": "*" });
     return res.end("ok");
@@ -110,7 +177,7 @@ function uniqueName(room, name) {
 function cleanView(v) {
   if (!v || typeof v !== "object") return null;
   const s = (x, n) => (typeof x === "string" ? x.replace(/[\u0000-\u001f]/g, " ").slice(0, n) : "");
-  const out = { kind: "idle", cat: CATS.includes(v.cat) ? v.cat : "kitty", adult: !!v.adult, tag: s(v.tag, 80), text: s(v.text, 400), foot: s(v.foot, 200) };
+  const out = { kind: "idle", cat: CATS.includes(v.cat) ? v.cat : "kitty", adult: !!v.adult, gid: typeof v.gid === "string" ? v.gid.replace(/[^a-z]/g, "").slice(0, 20) : null, tag: s(v.tag, 80), text: s(v.text, 400), foot: s(v.foot, 200) };
   if (v.kind === "card") {
     out.kind = "card";
   } else if (v.kind === "number") {

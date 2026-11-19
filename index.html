@@ -507,6 +507,40 @@ textarea.field { padding: 14px 16px; min-height: 96px; resize: vertical; width: 
 .lane-h .mini { width: 30px; flex: 0 0 auto; align-self: center; animation: none; }
 .side .hostline { display: flex; align-items: center; gap: 8px; } .side .hostline .host { width: 34px; animation: none; }
 
+
+/* referee chat */
+.refbtn {
+  position: fixed; right: 14px; bottom: calc(96px + env(safe-area-inset-bottom, 0px)); z-index: 40;
+  display: inline-flex; align-items: center; gap: 6px; padding: 4px 14px 4px 4px; border-radius: 999px; cursor: pointer;
+  background: rgba(16,16,22,.92); color: #fff; border: 1px solid var(--line2); font: 800 13px var(--body);
+  -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); box-shadow: 0 12px 30px rgba(0,0,0,.5);
+}
+.refbtn .host.tiny { width: 38px; animation: none; }
+.room-on .refbtn { bottom: calc(160px + env(safe-area-inset-bottom, 0px)); }
+dialog.chat {
+  width: min(520px, 96vw); height: min(640px, 86vh); padding: 0; border: 1px solid var(--line); border-radius: 24px; overflow: hidden;
+  background: var(--surface-solid); color: var(--ink); box-shadow: 0 40px 120px rgba(0,0,0,.8); flex-direction: column;
+}
+dialog.chat[open] { display: flex; animation: pop .3s cubic-bezier(.2,.7,.2,1); }
+dialog.chat::backdrop { background: rgba(0,0,0,.6); -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px); }
+.chathead { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-bottom: 1px solid var(--line); position: relative;
+  background: radial-gradient(circle at 0% 0%, color-mix(in srgb, var(--c) 30%, transparent), transparent 60%); }
+.chathead .host { width: 52px; }
+.chathead b { display: block; font: 800 18px var(--display); letter-spacing: -0.04em; }
+.chathead span { color: var(--muted); font-size: 13px; font-weight: 700; }
+.chathead .close { position: static; margin-left: auto; }
+.msgs { flex: 1 1 auto; overflow-y: auto; padding: 14px; display: flex; flex-direction: column; gap: 8px; }
+.msg { align-self: flex-start; max-width: 85%; background: #fff; color: #050507; padding: 9px 13px; border-radius: 16px 16px 16px 4px; font: 600 15px/1.4 var(--body); animation: pop .25s; }
+.msg .who { display: block; font: 800 10px var(--body); letter-spacing: .16em; text-transform: uppercase; color: color-mix(in srgb, var(--c) 70%, #000); margin-bottom: 2px; }
+.msg.me { align-self: flex-end; background: var(--c); color: var(--on); border-radius: 16px 16px 4px 16px; }
+.qchips { display: flex; gap: 6px; overflow-x: auto; padding: 8px 14px; scrollbar-width: none; border-top: 1px solid var(--line); }
+.qchips::-webkit-scrollbar { display: none; }
+.qchips .chip { flex: 0 0 auto; min-height: 34px; font-size: 13px; }
+dialog.chat .addrow { padding: 8px 14px calc(12px + env(safe-area-inset-bottom, 0px)); }
+@media (max-width: 699px) {
+  dialog.chat { width: 100vw; max-width: 100vw; height: 82vh; margin: auto 0 0; border-radius: 24px 24px 0 0; border-bottom: 0; }
+}
+
 .foot { padding: 34px var(--pad) 110px; color: #6A6A78; font-size: 13px; border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: 6px; }
 .foot .logo { font-size: 22px; }
 
@@ -1551,7 +1585,7 @@ textarea.field { padding: 14px 16px; min-height: 96px; resize: vertical; width: 
   var app = document.getElementById("app");
   var nav = document.getElementById("nav");
   var state = { players: [], turn: 0, adult: false, ctx: null, joinCode: "", from: "", recent: [], stats: null };
-  var curCat = "kitty", curAdult = false;
+  var curCat = "kitty", curAdult = false, curGid = null;
   var room = { ws: null, on: false, host: false, code: "", players: [], view: null, err: "", connecting: false, voted: {} };
   var pingTimer = null, cleanup = null, actx = null, dlg = null;
   var actHandler = null; // host: receives votes and answers from friends' phones
@@ -1758,7 +1792,7 @@ textarea.field { padding: 14px 16px; min-height: 96px; resize: vertical; width: 
       el("p", { class: "bubble say", id: "hostsay", "aria-live": "polite" }, [el("span", { class: "who" }, [H.name]), pick(H[mood] || H.game)])]);
   }
   function publish(view, privates) {
-    view.cat = curCat; view.adult = curAdult;
+    view.cat = curCat; view.adult = curAdult; view.gid = curGid;
     var mood = hostMood(view); if (mood) hostSay(mood);
     room.view = view;
     if (room.on && room.host) {
@@ -2856,6 +2890,172 @@ textarea.field { padding: 14px 16px; min-height: 96px; resize: vertical; width: 
   }
   function hostEl(cat, cls) { var d = el("div", { class: "host " + (cls || "") }); d.innerHTML = hostSvg(cat); return d; }
 
+  /* ================= REFEREE CHAT =================
+     Built-in rulebook answers instantly and offline. If the room server has an AI key set,
+     anything the rulebook can't answer goes to the AI referee instead. */
+  var FAQ = {
+    imposter: [
+      [/categor|say the (category|word)|hint/i, "Clues must be one word. You can't say the secret word or the category name. Too obvious and the imposter learns it."],
+      [/guess|steal|win/i, "If the imposter gets voted out, they get one guess at the word. Right guess: imposter steals the win. Wrong: crew wins."],
+      [/tie/i, "Tie in the vote? The imposter survives this round. Want drama? Re-vote just between the tied players."],
+      [/how many|round/i, "Two clue rounds is standard. Big group? One round is enough."]
+    ],
+    kingscup: [
+      [/\bjack\b|\bj\b|make a rule/i, "Jack: make a rule for the rest of the game, like 'no first names'. Break it, sip."],
+      [/queen|question/i, "Queen: you're question master. Anyone who answers your question sips, until the next queen comes out."],
+      [/thumb|five|\b5\b/i, "5 is thumb master. Put your thumb on the table any time. Last to copy sips."],
+      [/king|cup|fourth|4th/i, "Each king: pour a little into the middle cup. The 4th king finishes it, or a glass of water. Your call."],
+      [/waterfall|ace/i, "Ace is waterfall: everyone starts drinking, you stop only after the person before you stops. Small sips are fine."],
+      [/mate|eight|\b8\b/i, "8 is mate: pick a buddy. Every time you sip, they sip, until the next 8."]
+    ],
+    hilo: [[/same|equal|tie/i, "Same card as before? Everyone sips. Nobody wins that one."], [/ace/i, "Aces are high, the top card."]],
+    paranoia: [[/know|reveal|tell/i, "Only heads reveals the question. Tails? It stays secret, unless you take a sip to find out."], [/lie|fake/i, "You must say a real name, no explanations. Lying ruins the paranoia."]],
+    whosaid: [[/guess|point|score/i, "Everyone guesses out loud, then tap reveal. Wrong guessers sip, or do a dare in non-drinking groups."], [/same|copy/i, "Similar answers? Even better. More confusion."]],
+    twotruths: [[/how|rule/i, "The speaker says three things, one is a lie. Everyone votes on the lie, then the speaker reveals it. Fool the whole room and you're a master liar."]],
+    tambola: [[/wrong|bogus|false|fake/i, "Wrong claim (a bogey)? That player is out for that prize, or pays a small fine to the kitty."], [/claim|line|house|corner|five/i, "Claims: first five, top line, middle line, bottom line, full house. The host checks the ticket against the called numbers on the board."]],
+    charades: [[/talk|speak|mouth|lip/i, "No talking, no mouthing words. Gestures, acting and finger counts only."], [/syllable|word count|sign/i, "Standard signs: fingers for number of words, tap your arm for syllables, hand on ear for 'sounds like'."]],
+    forehead: [[/rhyme|say the word|spell/i, "Describers can't say the word, rhymes or spellings. Do it and that card doesn't count."]],
+    antakshari: [[/repeat|same song/i, "No repeating a song already sung this game. Repeat it and the turn passes."], [/language|english/i, "Any language works unless your group sets a rule. Hindi-only is classic."]],
+    mltvote: [[/self|myself/i, "You can vote for yourself. Self-awareness is attractive."]],
+    kittyverdict: [[/self|myself/i, "Voting for yourself is allowed. Bold."]],
+    bollybomb: [[/repeat|same/i, "Repeated answers don't count. Say a new one before you pass."], [/drop|fumble/i, "Dropped the phone? You're still holding it in spirit."]],
+    hotpotato: [[/repeat|same/i, "No repeats. Say a new answer, then pass."]],
+    shotclock: [[/repeat|same/i, "No repeats. Say a new answer, then pass."]],
+    couplesync: [[/score|percent|%/i, "Every matching answer adds to your sync score. 90% and up: soulmates. Under 30%: opposites, which is also hot."]],
+    knowme: [[/score|point/i, "The guesser scores when they match their partner's real answer. Roles swap every question."]],
+    kittyroyale: [[/score|point|wrong/i, "Scores can be fixed. Use the plus and minus buttons on the scoreboard between rounds."]],
+    gauntlet: [[/score|sip|wrong|count/i, "Sip counts can be fixed with plus and minus on the scoreboard. Sips are optional. Water counts."]]
+  };
+  var KIND_FAQ = {
+    vote: [[/tie/i, "Tie! Both share the title, or both take the penalty. Want a winner? Quick re-vote between just the tied names."]],
+    bomb: [[/when|time|how long/i, "The fuse is hidden, between 15 and 40 seconds. Nobody knows, not even me."]],
+    deck: [[/level|spicy|unhinged/i, "Switch levels at the top. Start Mild, earn your way to Unhinged."], [/own card|custom|write/i, "Scroll down to 'Write your own cards'. Your cards get mixed into every level of this game."]],
+    tod: [[/swap|change card/i, "Tap 'Swap card' once per turn. After that you do it, or take the group's mini penalty."]],
+    sync: [[/cheat|peek|look/i, "No peeking at each other's choice. Pass the phone, or play in a room on two phones."]],
+    spin: [[/again|re-?spin/i, "One re-spin per turn if the whole group agrees. Otherwise the wheel has spoken."]]
+  };
+  var GENERIC = [
+    [/emergency|unconscious|passed out|not breathing|hurt|injur|vomit|throw(ing)? up|too drunk|unwell|sick/i, "Game paused. Look after them first: water, fresh air, sit them up on their side if they're sleepy. If someone is unresponsive or struggling to breathe, call 112 right now."],
+    [/drunk|too much|my limit|slow down|water/i, "Referee rule: sips are optional and water always counts. Nobody drinks more than they want, and nobody drives after drinking."],
+    [/drive|driving|car/i, "Nobody drives after drinking. Book a cab, crash on the sofa, or have a sober driver."],
+    [/skip|pass|don'?t want|uncomfortable|not comfortable|refuse/i, "Always allowed. Say 'pass' and move on. Your group can agree on a tiny penalty, but nobody is ever forced."],
+    [/cheat|peek|peeked|looked|saw (my|his|her|their)/i, "Caught peeking? Redo that round and the cheater takes the penalty: a sip, a dare or bringing snacks."],
+    [/tie|draw|equal/i, "Tie! Both share it. Need a winner? Rock-paper-scissors, best of three. Fastest tie-breaker in history."],
+    [/who('?s| is)? (next|turn)|whose turn|my turn/i, "@TURN"],
+    [/coin|heads|tails|toss/i, "@COIN"],
+    [/dice|roll/i, "@DICE"],
+    [/random|pick (someone|a person)|choose someone|who should/i, "@PICK"],
+    [/decide|settle|dispute|argu|fight|who('?s| is) right|fair/i, "Referee's ruling: majority vote decides. Everyone points on three. Still tied? I flip a coin and it says @COINWORD wins it."],
+    [/explain|what does (this|it) mean|this card|current card|meaning/i, "@CARD"],
+    [/how (do|to) (i |we )?play|rules?|how does this work|explain the game/i, "@RULE"],
+    [/how many|players|minimum|people/i, "@PLAYERS"],
+    [/score|points|who('?s| is) winning/i, "Scores live on the scoreboard in the main event games. Elsewhere it's bragging rights. I'm watching though."],
+    [/^(hi|hello|hey|yo)\b/i, "@HELLO"]
+  ];
+  var aiOn = null;
+  function checkAI() {
+    if (aiOn !== null || !canRoom()) return;
+    aiOn = false;
+    try {
+      fetch((location.protocol === "https:" ? "https://" : "http://") + ROOM_HOST + "/ask", { cache: "no-store" })
+        .then(function (r) { return r.json(); }).then(function (j) { aiOn = !!(j && j.on); }).catch(function () {});
+    } catch (e) {}
+  }
+  function refContext() {
+    var v = room.view || {}, gid = (location.hash.indexOf("#game-") === 0 ? location.hash.slice(6) : v.gid) || null;
+    return { gid: gid, g: gid ? GAMES[gid] : null, cat: v.cat || curCat, card: v.text || "", tag: v.tag || "" };
+  }
+  function kingsExplain(tag) {
+    var m = /^(10|[2-9AJQK])/.exec(tag || "");
+    return m && KINGS[m[1]] ? m[1] + " is " + KINGS[m[1]][0] + ": " + KINGS[m[1]][1] : null;
+  }
+  function refAnswer(q, ctx) {
+    var g = ctx.g, list = [];
+    if (ctx.gid && FAQ[ctx.gid]) list = list.concat(FAQ[ctx.gid]);
+    if (g && KIND_FAQ[g.kind]) list = list.concat(KIND_FAQ[g.kind]);
+    if (ctx.gid === "kingscup" && /this card|explain|mean/i.test(q)) { var k = kingsExplain(ctx.tag); if (k) return k; }
+    list = list.concat(GENERIC);
+    for (var i = 0; i < list.length; i++) {
+      if (!list[i][0].test(q)) continue;
+      var a = list[i][1];
+      if (a === "@TURN") { var n = curName(); return n ? n + " is up. Then " + (plist()[(state.turn + 1) % plist().length] || "the next person") + "." : "Add player names and I'll track turns for you."; }
+      if (a === "@COIN") { sTick(); return "Flipping… " + (Math.random() < 0.5 ? "Heads!" : "Tails!"); }
+      if (a === "@DICE") { sTick(); return "Rolled a " + (1 + Math.floor(Math.random() * 6)) + "."; }
+      if (a === "@PICK") { var l = plist(); return l.length ? "The referee picks… " + pick(l) + "!" : "Add player names and I'll pick someone."; }
+      if (a === "@CARD") return ctx.card ? "On screen: “" + ctx.card + "”. " + (g ? ruleOf(ctx.gid) : "Do what the card says, or pass.") : (g ? ruleOf(ctx.gid) : "Nothing on screen yet.");
+      if (a === "@RULE") return g ? ruleOf(ctx.gid) : "Pick a game and I'll explain it.";
+      if (a === "@PLAYERS") return g ? g.name + " is for " + bits(g).players + "." : "Most games work with 3 to 10 people.";
+      if (a === "@HELLO") return "Hey! Ask me about the rules, ties, disputes, whose turn it is, or tell me to flip a coin.";
+      var pl = plist();
+      return a.replace("@COINWORD", pl.length ? pick(pl) : (Math.random() < 0.5 ? "heads" : "tails"));
+    }
+    return null;
+  }
+  function askAI(q, ctx, history, done) {
+    var g = ctx.g;
+    var body = { question: q.slice(0, 300), host: HOSTS[ctx.cat] ? HOSTS[ctx.cat].name : "the referee", game: g ? g.name : "", rule: g ? ruleOf(ctx.gid) : "",
+      card: (ctx.tag ? ctx.tag + ": " : "") + ctx.card, players: plist().slice(0, 12), adult: !!(g && g.adult), history: history.slice(-6) };
+    fetch((location.protocol === "https:" ? "https://" : "http://") + ROOM_HOST + "/ask", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) })
+      .then(function (r) { return r.json(); })
+      .then(function (j) { done(j && j.answer ? j.answer : null); })
+      .catch(function () { done(null); });
+  }
+
+  var chatLog = { key: "", msgs: [] }, chatDlg = null;
+  function openChat() {
+    var ctx = refContext(), H = HOSTS[ctx.cat] || HOSTS.house, key = (ctx.gid || ctx.cat);
+    checkAI();
+    if (chatLog.key !== key) chatLog = { key: key, msgs: [{ me: false, t: "I'm your referee tonight. Ask me about rules, ties, disputes, or whose turn it is." + (ctx.g ? " We're playing " + ctx.g.name + "." : "") }] };
+    if (!chatDlg) {
+      chatDlg = el("dialog", { class: "chat" });
+      chatDlg.addEventListener("click", function (e) { if (e.target === chatDlg) chatDlg.close(); });
+      document.body.appendChild(chatDlg);
+    }
+    chatDlg.textContent = "";
+    chatDlg.setAttribute("style", colorStyle(ctx.cat));
+    var msgs = el("div", { class: "msgs", "aria-live": "polite" });
+    function draw() {
+      msgs.textContent = "";
+      chatLog.msgs.forEach(function (m) {
+        msgs.appendChild(el("div", { class: "msg" + (m.me ? " me" : "") }, [m.me ? null : el("span", { class: "who" }, [H.name]), m.t]));
+      });
+      msgs.scrollTop = msgs.scrollHeight;
+    }
+    function ask(q) {
+      q = q.replace(/\s+/g, " ").trim(); if (!q) return;
+      chatLog.msgs.push({ me: true, t: q }); draw();
+      var ans = refAnswer(q, ctx);
+      if (ans) { setTimeout(function () { chatLog.msgs.push({ me: false, t: ans }); draw(); sTick(); }, 280); return; }
+      if (aiOn) {
+        var thinking = { me: false, t: "Checking the rulebook…" }; chatLog.msgs.push(thinking); draw();
+        var hist = chatLog.msgs.slice(0, -2).map(function (m) { return { role: m.me ? "user" : "assistant", text: m.t }; });
+        askAI(q, ctx, hist, function (a) { thinking.t = a || "Couldn't reach the referee booth. Referee's call: majority vote decides."; draw(); sTick(); });
+        return;
+      }
+      setTimeout(function () {
+        chatLog.msgs.push({ me: false, t: "Referee's call: if the rules don't cover it, the group votes and majority wins. Still stuck? Ask me to flip a coin." + (ctx.g ? " Rules for " + ctx.g.name + ": " + ruleOf(ctx.gid) : "") });
+        draw();
+      }, 280);
+    }
+    var input = el("input", { type: "text", maxlength: "300", placeholder: "Ask the referee…", autocomplete: "off", "aria-label": "Ask the referee", enterkeyhint: "send" });
+    var form = el("form", { class: "addrow" }, [input, el("button", { class: "btn small-btn", type: "submit", "aria-label": "Send" }, ["Ask"])]);
+    form.addEventListener("submit", function (e) { e.preventDefault(); ask(input.value); input.value = ""; });
+    var chips = ["How do we play?", "It's a tie", "Can I skip?", "Explain this card", "Settle a dispute", "Whose turn?", "Pick someone", "Flip a coin"];
+    var face = hostEl(ctx.cat);
+    chatDlg.appendChild(el("div", { class: "chathead" }, [face, el("div", null, [el("b", null, [H.name]), el("span", null, ["Referee" + (ctx.g ? " · " + ctx.g.name : "")])]),
+      el("button", { class: "close", type: "button", "aria-label": "Close", onclick: function () { chatDlg.close(); } }, ["×"])]));
+    chatDlg.appendChild(msgs);
+    chatDlg.appendChild(el("div", { class: "qchips" }, chips.map(function (c) { return el("button", { class: "chip", type: "button", onclick: function () { ask(c); } }, [c]); })));
+    chatDlg.appendChild(form);
+    draw();
+    if (!chatDlg.open) chatDlg.showModal();
+    setTimeout(function () { if (window.matchMedia("(hover: hover)").matches) input.focus(); }, 50);
+  }
+  function refButton(cat) {
+    var b = el("button", { class: "refbtn", type: "button", "aria-label": "Ask the referee", onclick: openChat }, [hostEl(cat, "tiny"), el("span", null, ["Ask ref"])]);
+    return b;
+  }
+
   /* ================= VIEWS ================= */
   var ICONS = {
     play: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 4.6v14.8a1 1 0 0 0 1.5.86l12.2-7.4a1 1 0 0 0 0-1.72L8.5 3.74A1 1 0 0 0 7 4.6z"/></svg>',
@@ -3111,7 +3311,7 @@ textarea.field { padding: 14px 16px; min-height: 96px; resize: vertical; width: 
     var g = GAMES[gid];
     if (!g) { location.hash = ""; return el("div"); }
     var cat = catFor(gid);
-    curCat = cat; curAdult = !!g.adult;
+    curCat = cat; curAdult = !!g.adult; curGid = gid;
     if (g.adult && !state.adult) return gateView(state.from || cat);
     remember(gid);
     var body = el("div", { class: "stack" });
@@ -3133,7 +3333,8 @@ textarea.field { padding: 14px 16px; min-height: 96px; resize: vertical; width: 
     if (run) run(gid, g, body);
     return el("section", { class: "page", style: colorStyle(cat) }, [
       el("div", { class: "backdrop " + a.cls, style: a.style, "aria-hidden": "true" }, [artEl(gid)]),
-      el("div", { class: "wrap" }, parts)
+      el("div", { class: "wrap" }, parts),
+      refButton(cat)
     ]);
   }
   function faceStyle(i) { return "background:linear-gradient(135deg," + FACE[i % FACE.length] + "," + FACE[(i + 3) % FACE.length] + ")"; }
@@ -3415,7 +3616,7 @@ textarea.field { padding: 14px 16px; min-height: 96px; resize: vertical; width: 
     } else {
       parts.push(cardEl({ tag: "OT", text: v.text || "Waiting for the host.", foot: "" }));
     }
-    return el("section", { class: "page", style: colorStyle(v.cat || "kitty") }, [el("div", { class: "wrap" }, parts)]);
+    return el("section", { class: "page", style: colorStyle(v.cat || "kitty") }, [el("div", { class: "wrap" }, parts), refButton(v.cat || "kitty")]);
   }
 
   /* ================= ROUTER ================= */
@@ -3423,6 +3624,7 @@ textarea.field { padding: 14px 16px; min-height: 96px; resize: vertical; width: 
     if (cleanup) { try { cleanup(); } catch (e) {} cleanup = null; }
     actHandler = null;
     if (dlg && dlg.open) dlg.close();
+    if (chatDlg && chatDlg.open && !(room.on && !room.host)) chatDlg.close();
     app.textContent = "";
     var r = location.hash.replace("#", "") || "home";
     updateRoomBar();
@@ -3436,6 +3638,7 @@ textarea.field { padding: 14px 16px; min-height: 96px; resize: vertical; width: 
       if (r.indexOf("join-") === 0) state.joinCode = r.slice(5).toUpperCase().replace(/[^A-Z]/g, "").slice(0, 4);
       wakeRooms(); view = roomView();
     } else { r = "home"; view = homeView(); }
+    if (r.indexOf("game-") !== 0) curGid = null;
     if (r === "home") state.from = ""; else if (CATS[r]) state.from = r;
     renderNav(r);
     app.appendChild(view);

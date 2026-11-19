@@ -15,3 +15,6 @@ services:
     envVars:
       - key: ALLOWED_ORIGINS
         value: https://playroom-4r37.onrender.com
+      # Optional: turns on the AI referee. Add it in the Render dashboard.
+      - key: ANTHROPIC_API_KEY
+        sync: false
