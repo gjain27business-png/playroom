@@ -11,6 +11,17 @@ const MAX_ROOMS = 500;
 const MAX_PLAYERS = 12;
 const ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ";
 const CATS = ["kitty", "couple", "drinks", "house"];
+const DAY = "public, max-age=86400";
+// Files the site serves from /public: [file name, content type, cache rule].
+const STATIC = {
+  "/og.png": ["og.png", "image/png", DAY],
+  "/icon-192.png": ["icon-192.png", "image/png", DAY],
+  "/icon-512.png": ["icon-512.png", "image/png", DAY],
+  "/icon-maskable.png": ["icon-maskable.png", "image/png", DAY],
+  "/apple-touch-icon.png": ["apple-touch-icon.png", "image/png", DAY],
+  "/manifest.webmanifest": ["manifest.webmanifest", "application/manifest+json", "no-cache"],
+  "/sw.js": ["sw.js", "text/javascript; charset=utf-8", "no-cache"]
+};
 
 const server = http.createServer((req, res) => {
   const url = (req.url || "/").split("?")[0];
@@ -18,13 +29,14 @@ const server = http.createServer((req, res) => {
     res.writeHead(200, { "content-type": "text/plain" });
     return res.end("ok");
   }
-  if (url === "/og.png") {
-    return fs.readFile(path.join(__dirname, "public", "og.png"), (err, buf) => {
+  const file = STATIC[url];
+  if (file) {
+    return fs.readFile(path.join(__dirname, "public", file[0]), (err, buf) => {
       if (err) {
         res.writeHead(404, { "content-type": "text/plain" });
         return res.end("Not found");
       }
-      res.writeHead(200, { "content-type": "image/png", "cache-control": "public, max-age=86400" });
+      res.writeHead(200, { "content-type": file[1], "cache-control": file[2] });
       res.end(buf);
     });
   }
