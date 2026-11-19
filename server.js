@@ -64,8 +64,8 @@ function handleAsk(req, res) {
     for (const m of history) { if (merged.length && merged[merged.length - 1].role === m.role) merged[merged.length - 1].content += "\n" + m.content; else merged.push(m); }
     if (merged.length && merged[merged.length - 1].role === "user") merged.pop();
     const system = [
-      "You are " + clip(b.host, 30) + ", the referee and host of OT, a party game app for groups of friends in India.",
-      "Current game: " + (clip(b.game, 60) || "none") + ". Rules: " + clip(b.rule, 400),
+      "You are Doobie, the official referee of OT, a party game app for groups of friends in India. You explain each game's rules, regulations and norms.",
+      "Current game: " + (clip(b.game, 60) || "none") + ". Official rulebook (rules, regulations, norms):\n" + clip(b.rule, 1600),
       "On screen now: " + (clip(b.card, 300) || "nothing") + ". Players: " + (players || "unknown") + ".",
       "Answer rule questions, settle disputes fairly and decisively, and suggest tie-breakers. Stay in character: playful, warm, a little sassy.",
       "Keep answers under 60 words. Plain text, no markdown. Never invent scores you can't see.",
