@@ -110,12 +110,9 @@ function uniqueName(room, name) {
 function cleanView(v) {
   if (!v || typeof v !== "object") return null;
   const s = (x, n) => (typeof x === "string" ? x.replace(/[\u0000-\u001f]/g, " ").slice(0, n) : "");
-  const out = { kind: "idle", cat: CATS.includes(v.cat) ? v.cat : "kitty", adult: !!v.adult };
+  const out = { kind: "idle", cat: CATS.includes(v.cat) ? v.cat : "kitty", adult: !!v.adult, tag: s(v.tag, 80), text: s(v.text, 400), foot: s(v.foot, 200) };
   if (v.kind === "card") {
     out.kind = "card";
-    out.tag = s(v.tag, 80);
-    out.text = s(v.text, 400);
-    out.foot = s(v.foot, 200);
   } else if (v.kind === "number") {
     out.kind = "number";
     out.n = Number.isInteger(v.n) && v.n >= 1 && v.n <= 90 ? v.n : null;
@@ -124,8 +121,25 @@ function cleanView(v) {
     out.called = Array.isArray(v.called)
       ? v.called.filter((x) => Number.isInteger(x) && x >= 1 && x <= 90).slice(0, 90)
       : [];
-  } else {
-    out.text = s(v.text, 200);
+  } else if (v.kind === "vote") {
+    // Friends pick one option on their own phone.
+    out.kind = "vote";
+    out.id = s(v.id, 40);
+    out.options = Array.isArray(v.options) ? v.options.slice(0, 12).map((o) => s(o, 40)).filter(Boolean) : [];
+    out.noSelf = !!v.noSelf;
+  } else if (v.kind === "write") {
+    // Friends type a short answer on their own phone.
+    out.kind = "write";
+    out.id = s(v.id, 40);
+  } else if (v.kind === "bars") {
+    // Vote results.
+    out.kind = "bars";
+    out.rows = Array.isArray(v.rows)
+      ? v.rows.slice(0, 12).map((r) => ({ label: s(r && r.label, 40), n: Number.isInteger(r && r.n) ? Math.max(0, Math.min(99, r.n)) : 0 }))
+      : [];
+  }
+  if ((out.kind === "vote" || out.kind === "write") && Array.isArray(v.only)) {
+    out.only = v.only.slice(0, 12).map((o) => s(o, 16)).filter(Boolean);
   }
   return out;
 }
@@ -164,9 +178,9 @@ wss.on("connection", (ws) => {
       const code = newCode();
       if (!code) return send(ws, { t: "error", msg: "Could not make a room. Try again." });
       me = { ws, name };
-      room = { code, host: me, members: [me], view: null };
+      room = { code, host: me, members: [me], view: null, privates: {} };
       rooms.set(code, room);
-      send(ws, { t: "joined", code, host: true, players: names(room), view: null });
+      send(ws, { t: "joined", code, host: true, you: me.name, players: names(room), view: null });
     } else if (m.t === "join" && !room) {
       const name = cleanName(m.name);
       const code = String(m.code || "").toUpperCase().replace(/[^A-Z]/g, "").slice(0, 4);
@@ -177,11 +191,25 @@ wss.on("connection", (ws) => {
       room = target;
       me = { ws, name: uniqueName(room, name) };
       room.members.push(me);
-      send(ws, { t: "joined", code: room.code, host: false, players: names(room), view: room.view });
+      send(ws, { t: "joined", code: room.code, host: false, you: me.name, players: names(room), view: room.privates[me.name] || room.view });
       broadcast(room, { t: "players", players: names(room) }, ws);
     } else if (m.t === "show" && room && me && room.host === me) {
       room.view = cleanView(m.view);
-      broadcast(room, { t: "show", view: room.view }, ws);
+      // Optional per-player views, for secret words and private roles.
+      room.privates = {};
+      if (m.privates && typeof m.privates === "object") {
+        for (const x of room.members) {
+          if (x !== me && m.privates[x.name]) room.privates[x.name] = cleanView(m.privates[x.name]);
+        }
+      }
+      for (const x of room.members) {
+        if (x.ws !== ws) send(x.ws, { t: "show", view: room.privates[x.name] || room.view });
+      }
+    } else if (m.t === "act" && room && me && room.host !== me) {
+      // A friend's vote or answer goes to the host only.
+      const id = typeof m.id === "string" ? m.id.slice(0, 40) : "";
+      const v = typeof m.v === "string" ? m.v.replace(/[\u0000-\u001f]/g, " ").slice(0, 200) : "";
+      if (id && v) send(room.host.ws, { t: "act", from: me.name, id, v });
     }
   });
 
@@ -208,5 +236,5 @@ setInterval(() => {
 }, 30000);
 
 server.listen(PORT, () => {
-  console.log("Playroom listening on " + PORT);
+  console.log("OT listening on " + PORT);
 });
