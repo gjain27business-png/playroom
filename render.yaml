@@ -1,8 +1,17 @@
+# Two Render services run from this repo:
+# 1. "playroom" (static site, created in the dashboard) serves the pages at playroom-4r37.onrender.com.
+#    Static sites never sleep, so the games load instantly.
+# 2. "playroom-rooms" (below) runs server.js for live multi-phone rooms at playroom-rooms.onrender.com.
+#    The page connects to it automatically when someone opens Play together.
 services:
   - type: web
     name: playroom-rooms
     runtime: node
     plan: free
+    region: singapore
     buildCommand: npm install
     startCommand: node server.js
     healthCheckPath: /healthz
+    envVars:
+      - key: ALLOWED_ORIGINS
+        value: https://playroom-4r37.onrender.com

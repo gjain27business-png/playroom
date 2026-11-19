@@ -26,12 +26,12 @@ const STATIC = {
 const server = http.createServer((req, res) => {
   const url = (req.url || "/").split("?")[0];
   if (url === "/healthz") {
-    res.writeHead(200, { "content-type": "text/plain" });
+    res.writeHead(200, { "content-type": "text/plain", "access-control-allow-origin": "*" });
     return res.end("ok");
   }
   const file = STATIC[url];
   if (file) {
-    return fs.readFile(path.join(__dirname, "public", file[0]), (err, buf) => {
+    return fs.readFile(path.join(__dirname, file[0]), (err, buf) => {
       if (err) {
         res.writeHead(404, { "content-type": "text/plain" });
         return res.end("Not found");
@@ -58,7 +58,23 @@ const server = http.createServer((req, res) => {
   res.end("Not found");
 });
 
-const wss = new WebSocketServer({ server, maxPayload: 20 * 1024 });
+// Only pages from these sites may open a room connection.
+const ALLOWED = new Set(
+  ["https://playroom-4r37.onrender.com", "https://playroom-rooms.onrender.com"]
+    .concat(String(process.env.ALLOWED_ORIGINS || "").split(","))
+    .map((s) => s.trim())
+    .filter(Boolean)
+);
+function originOk(origin) {
+  if (!origin) return true;
+  if (ALLOWED.has(origin)) return true;
+  return /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
+}
+const wss = new WebSocketServer({
+  server,
+  maxPayload: 20 * 1024,
+  verifyClient: (info) => originOk(info.origin)
+});
 const rooms = new Map();
 
 function newCode() {

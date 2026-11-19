@@ -811,6 +811,13 @@ dialog.info[open] { animation: pop .28s cubic-bezier(.2,.7,.2,1); }
   var nav = document.getElementById("nav");
   var state = { players: [], turn: 0, adult: false, ctx: null, joinCode: "", from: "", recent: [] };
   var curCat = "kitty";
+  // Pages are served by the static site; live rooms run on a separate Node service.
+  var ROOM_HOST = /\.onrender\.com$/.test(location.hostname) && location.hostname !== "playroom-rooms.onrender.com"
+    ? "playroom-rooms.onrender.com" : location.host;
+  var ROOM_URL = (location.protocol === "https:" ? "wss://" : "ws://") + ROOM_HOST;
+  function wakeRooms() {
+    try { fetch((location.protocol === "https:" ? "https://" : "http://") + ROOM_HOST + "/healthz", { mode: "no-cors", cache: "no-store" }).catch(function () {}); } catch (e) {}
+  }
   var room = { ws: null, on: false, host: false, code: "", players: [], view: null, err: "", connecting: false };
   var pingTimer = null;
   var cleanup = null;
@@ -1618,6 +1625,7 @@ dialog.info[open] { animation: pop .28s cubic-bezier(.2,.7,.2,1); }
   }
 
   function roomView() {
+    wakeRooms();
     return el("section", { class: "page" }, [
       el("div", { class: "wrap" }, [
         topbar(state.from, "Back"),
@@ -1688,17 +1696,24 @@ dialog.info[open] { animation: pop .28s cubic-bezier(.2,.7,.2,1); }
     if (location.hash && location.hash !== "#") location.hash = ""; else render();
   }
 
-  function connect(first) {
-    if (room.connecting || room.on) return;
-    room.err = ""; room.connecting = true; render();
-    var ws;
-    try { ws = new WebSocket((location.protocol === "https:" ? "wss://" : "ws://") + location.host); }
+  function connect(first, tries) {
+    tries = tries || 0;
+    if (room.on || (room.connecting && !tries)) return;
+    if (!tries) { room.err = ""; room.connecting = true; render(); wakeRooms(); }
+    var ws, opened = false;
+    try { ws = new WebSocket(ROOM_URL); }
     catch (e) { room.err = "Could not connect."; room.connecting = false; render(); return; }
     room.ws = ws;
-    ws.onopen = function () { ws.send(JSON.stringify(first)); startPing(); };
+    ws.onopen = function () { opened = true; ws.send(JSON.stringify(first)); startPing(); };
     ws.onmessage = function (ev) { var m; try { m = JSON.parse(ev.data); } catch (e) { return; } onRoomMsg(m); };
     ws.onclose = function () {
       stopPing();
+      // The free room server sleeps when idle; keep trying for about a minute while it wakes up.
+      if (!opened && !room.on && room.connecting && tries < 8) {
+        room.ws = null;
+        setTimeout(function () { if (room.connecting && !room.on) connect(first, tries + 1); }, 7000);
+        return;
+      }
       var was = room.on, wasHost = room.host;
       room.on = false; room.host = false; room.ws = null; room.connecting = false; room.players = []; room.code = "";
       if (was) room.err = wasHost ? "Connection lost. Your room has closed." : "Disconnected from the room.";
