@@ -1,0 +1,23 @@
+{
+  "name": "Playroom – Party Games",
+  "short_name": "Playroom",
+  "description": "Party games for kitty parties, couples, drinking nights and house parties. Open a room and every phone plays along.",
+  "id": "/",
+  "start_url": "/?source=app",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0A0A0E",
+  "theme_color": "#0A0A0E",
+  "categories": ["games", "entertainment", "lifestyle"],
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Kitty Party games", "url": "/#kitty", "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }] },
+    { "name": "Couple games", "url": "/#couple", "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }] },
+    { "name": "Play together", "url": "/#room", "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }] }
+  ]
+}

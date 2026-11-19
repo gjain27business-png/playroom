@@ -11,12 +11,38 @@ const MAX_ROOMS = 500;
 const MAX_PLAYERS = 12;
 const ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ";
 const CATS = ["kitty", "couple", "drinks", "house"];
+const DAY = "public, max-age=86400";
+// Files the site serves from /public: [file name, content type, cache rule].
+const STATIC = {
+  "/og.png": ["og.png", "image/png", DAY],
+  "/icon-192.png": ["icon-192.png", "image/png", DAY],
+  "/icon-512.png": ["icon-512.png", "image/png", DAY],
+  "/icon-maskable.png": ["icon-maskable.png", "image/png", DAY],
+  "/apple-touch-icon.png": ["apple-touch-icon.png", "image/png", DAY],
+  "/manifest.webmanifest": ["manifest.webmanifest", "application/manifest+json", "no-cache"],
+  "/sw.js": ["sw.js", "text/javascript; charset=utf-8", "no-cache"]
+};
 
 const server = http.createServer((req, res) => {
   const url = (req.url || "/").split("?")[0];
   if (url === "/healthz") {
-    res.writeHead(200, { "content-type": "text/plain" });
+    res.writeHead(200, { "content-type": "text/plain", "access-control-allow-origin": "*" });
     return res.end("ok");
+  }
+  const file = STATIC[url];
+  if (file) {
+    return fs.readFile(path.join(__dirname, file[0]), (err, buf) => {
+      if (err) {
+        res.writeHead(404, { "content-type": "text/plain" });
+        return res.end("Not found");
+      }
+      res.writeHead(200, { "content-type": file[1], "cache-control": file[2] });
+      res.end(buf);
+    });
+  }
+  if (url === "/robots.txt") {
+    res.writeHead(200, { "content-type": "text/plain" });
+    return res.end("User-agent: *\nAllow: /\n");
   }
   if (url === "/" || url === "/index.html") {
     return fs.readFile(INDEX, (err, buf) => {
@@ -32,7 +58,23 @@ const server = http.createServer((req, res) => {
   res.end("Not found");
 });
 
-const wss = new WebSocketServer({ server, maxPayload: 20 * 1024 });
+// Only pages from these sites may open a room connection.
+const ALLOWED = new Set(
+  ["https://playroom-4r37.onrender.com", "https://playroom-rooms.onrender.com"]
+    .concat(String(process.env.ALLOWED_ORIGINS || "").split(","))
+    .map((s) => s.trim())
+    .filter(Boolean)
+);
+function originOk(origin) {
+  if (!origin) return true;
+  if (ALLOWED.has(origin)) return true;
+  return /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
+}
+const wss = new WebSocketServer({
+  server,
+  maxPayload: 20 * 1024,
+  verifyClient: (info) => originOk(info.origin)
+});
 const rooms = new Map();
 
 function newCode() {
