@@ -480,6 +480,33 @@ textarea.field { padding: 14px 16px; min-height: 96px; resize: vertical; width: 
 .award .an { font: 800 22px/1.05 var(--display); letter-spacing: -0.04em; }
 .award .ad { color: var(--muted); font-size: 13px; margin-top: auto; }
 
+
+/* hosts */
+.host svg { width: 100%; height: auto; display: block; overflow: visible; }
+.host { animation: hbob 4.5s ease-in-out infinite; transform-origin: 50% 100%; }
+@keyframes hbob { 50% { transform: translateY(-5px) rotate(-1deg); } }
+.host.talk { animation: htalk .5s cubic-bezier(.2,.7,.2,1), hbob 4.5s ease-in-out .5s infinite; }
+@keyframes htalk { 0% { transform: scale(.9) rotate(4deg); } 60% { transform: scale(1.06) rotate(-2deg); } }
+.hostbar { display: flex; align-items: flex-end; gap: 10px; }
+.hostbar .host { width: 66px; flex: 0 0 auto; }
+.bubble { position: relative; background: #fff; color: #050507; font: 700 14px/1.4 var(--body); padding: 10px 14px; border-radius: 18px 18px 18px 4px; max-width: 44ch; box-shadow: 0 12px 30px -12px color-mix(in srgb, var(--c) 70%, transparent); }
+.bubble .who { display: block; font: 800 10px var(--body); letter-spacing: .16em; text-transform: uppercase; color: color-mix(in srgb, var(--c) 70%, #000); margin-bottom: 2px; }
+.bubble.say { animation: pop .35s cubic-bezier(.2,.7,.2,1); }
+.hero-inner .host { position: absolute; z-index: -1; right: 5vw; bottom: 0; width: min(30vw, 400px); }
+.hero-inner.has-host .art .sym { opacity: .18; }
+.cathero .host { position: absolute; z-index: 0; right: 4vw; bottom: -6px; width: min(28vw, 300px); }
+.cathero .bubble { margin-top: 6px; align-self: flex-start; }
+.hosts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; padding: 0 var(--pad); }
+.hostcard { position: relative; overflow: hidden; border-radius: 22px; padding: 14px 14px 16px; text-decoration: none; color: #fff; border: 1px solid var(--line);
+  background: radial-gradient(circle at 50% 30%, color-mix(in srgb, var(--k) 38%, transparent), transparent 66%), #0D0D12; display: flex; flex-direction: column; gap: 4px; transition: transform .25s, border-color .25s; }
+.hostcard:hover { transform: translateY(-4px); border-color: color-mix(in srgb, var(--k) 60%, transparent); }
+.hostcard .host { width: 78%; margin: 0 auto 4px; }
+.hostcard b { font: 800 18px/1 var(--display); letter-spacing: -0.04em; }
+.hostcard span { font: 800 10px var(--body); letter-spacing: .16em; text-transform: uppercase; color: var(--k); }
+.hostcard p { color: #C9C9D3; font-size: 13px; margin-top: 4px; }
+.lane-h .mini { width: 30px; flex: 0 0 auto; align-self: center; animation: none; }
+.side .hostline { display: flex; align-items: center; gap: 8px; } .side .hostline .host { width: 34px; animation: none; }
+
 .foot { padding: 34px var(--pad) 110px; color: #6A6A78; font-size: 13px; border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: 6px; }
 .foot .logo { font-size: 22px; }
 
@@ -519,6 +546,11 @@ textarea.field { padding: 14px 16px; min-height: 96px; resize: vertical; width: 
   .ball { width: 120px; height: 120px; font-size: 52px; }
   .pcard { width: 120px; font-size: 46px; }
   .backdrop { height: 260px; }
+  .hero-inner .host { right: 0; bottom: auto; top: 2%; width: 46%; }
+  .cathero { padding-right: 34vw; }
+  .cathero .host { width: 38vw; right: 0; bottom: auto; top: 18px; }
+  .hosts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .hostbar .host { width: 56px; }
 }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition: none !important; animation: none !important; }
@@ -1704,8 +1736,30 @@ textarea.field { padding: 14px 16px; min-height: 96px; resize: vertical; width: 
 
   /* ---------- rooms: publish what friends' phones show ---------- */
   function roomSend(o) { if (room.ws && room.ws.readyState === 1) room.ws.send(JSON.stringify(o)); }
+  function hostMood(view) {
+    var t = view.tag || "";
+    if (view.kind === "bars") return /Caught|Wrong/.test(t) ? "win" : "reveal";
+    if (view.kind === "vote" || view.kind === "write") return "vote";
+    if (/BOOM/.test(t)) return "boom";
+    if (/👑|Round over|Sync score|Final score|The lie was|Heads|nailed|In sync/.test(t)) return "win";
+    return null;
+  }
+  function hostSay(mood) {
+    var b = document.getElementById("hostsay"), h = document.getElementById("hostface");
+    if (!b || !HOSTS[curCat]) return;
+    b.lastChild.textContent = pick(HOSTS[curCat][mood] || HOSTS[curCat].game);
+    b.classList.remove("say"); void b.offsetWidth; b.classList.add("say");
+    if (h) { h.classList.remove("talk"); void h.offsetWidth; h.classList.add("talk"); }
+  }
+  function hostBar(cat, mood) {
+    var H = HOSTS[cat], face = hostEl(cat);
+    face.id = "hostface";
+    return el("div", { class: "hostbar", style: colorStyle(cat) }, [face,
+      el("p", { class: "bubble say", id: "hostsay", "aria-live": "polite" }, [el("span", { class: "who" }, [H.name]), pick(H[mood] || H.game)])]);
+  }
   function publish(view, privates) {
     view.cat = curCat; view.adult = curAdult;
+    var mood = hostMood(view); if (mood) hostSay(mood);
     room.view = view;
     if (room.on && room.host) {
       var msg = { t: "show", view: view };
@@ -2668,6 +2722,140 @@ textarea.field { padding: 14px 16px; min-height: 96px; resize: vertical; width: 
     start();
   }
 
+  /* ================= HOSTS ================= */
+  var HOST_DEFS = '<defs>' +
+    '<filter id="stk" x="-20%" y="-20%" width="140%" height="140%"><feMorphology in="SourceAlpha" operator="dilate" radius="2.6" result="d"/><feFlood flood-color="#ffffff"/><feComposite in2="d" operator="in" result="o"/><feDropShadow in="o" dx="0" dy="6" stdDeviation="6" flood-color="#000" flood-opacity=".55" result="s"/><feMerge><feMergeNode in="s"/><feMergeNode in="SourceGraphic"/></feMerge></filter>' +
+    '<linearGradient id="gGold" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FFE7A3"/><stop offset="1" stop-color="#C99A2E"/></linearGradient>' +
+    '<linearGradient id="gSilver" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#8E95A6"/><stop offset=".45" stop-color="#F2F4F8"/><stop offset="1" stop-color="#7A8192"/></linearGradient>' +
+    '</defs>';
+
+  var HOST_ART = {
+    /* Sara — couples: confident, stylish, heart shades in her hair */
+    couple: '<g filter="url(#stk)">' +
+      '<path d="M38 118C26 56 70 16 102 16c36 0 74 30 62 102-3 26-14 38-26 38H64c-14 0-23-14-26-38z" fill="#1C0F1F"/>' +
+      '<path d="M30 220c4-40 30-62 70-62s66 22 70 62z" fill="#FF4D6D"/>' +
+      '<path d="M100 158l-22 62h-14l14-52zM100 158l22 62h14l-14-52z" fill="#B3163E"/>' +
+      '<path d="M86 160l14 30 14-30z" fill="#140A10"/>' +
+      '<path d="M88 128h24v34c-6 6-18 6-24 0z" fill="#D9976F"/>' +
+      '<path d="M66 86c0-30 15-44 34-44s34 14 34 44c0 30-16 50-34 52-18-2-34-22-34-52z" fill="#EBB08B"/>' +
+      '<path d="M60 96c-4-42 26-64 58-56 22 6 30 30 22 58-8-24-24-36-44-34-16 2-28 14-36 32z" fill="#1C0F1F"/>' +
+      '<path d="M76 62c10-12 30-16 46-8" stroke="#4E2648" stroke-width="3" fill="none" stroke-linecap="round"/>' +
+      '<path d="M76 84c5-4 12-5 18-2M106 82c6-3 13-2 18 2" stroke="#2A1420" stroke-width="2.6" fill="none" stroke-linecap="round"/>' +
+      '<path d="M76 95c4-6 14-7 19 0-5 5-14 5-19 0z" fill="#fff"/><circle cx="86" cy="94" r="4.2" fill="#3A1F1A"/><circle cx="87.4" cy="92.6" r="1.3" fill="#fff"/>' +
+      '<path d="M105 95c5-7 15-6 19 0-5 5-14 5-19 0z" fill="#fff"/><circle cx="114" cy="94" r="4.2" fill="#3A1F1A"/><circle cx="115.4" cy="92.6" r="1.3" fill="#fff"/>' +
+      '<path d="M74 94c6-8 16-8 22 0M104 94c6-8 16-8 22 0" stroke="#140A10" stroke-width="2.6" fill="none" stroke-linecap="round"/>' +
+      '<path d="M74 93l-5-3M126 93l5-3" stroke="#140A10" stroke-width="2.4" stroke-linecap="round"/>' +
+      '<path d="M100 99c-1 7-3 11 1 12" stroke="#B87355" stroke-width="2" fill="none" stroke-linecap="round"/>' +
+      '<ellipse cx="80" cy="110" rx="7" ry="4" fill="#FF6B86" opacity=".35"/><ellipse cx="120" cy="110" rx="7" ry="4" fill="#FF6B86" opacity=".35"/>' +
+      '<path d="M89 119c4-3 8-3 11-1 3-2 7-2 11 1-3 7-19 7-22 0z" fill="#D41F45"/><path d="M92 120c5 2 11 2 16 0" stroke="#8E0F2C" stroke-width="1.2" fill="none"/>' +
+      '<circle cx="64" cy="114" r="7" fill="none" stroke="url(#gGold)" stroke-width="2.6"/><circle cx="136" cy="114" r="7" fill="none" stroke="url(#gGold)" stroke-width="2.6"/>' +
+      '<path d="M70 42c-4-8 6-12 10-5 4-7 14-3 10 5l-10 10z" fill="#FF4D6D" stroke="url(#gGold)" stroke-width="2"/>' +
+      '<path d="M108 38c-4-8 6-12 10-5 4-7 14-3 10 5l-10 10z" fill="#FF4D6D" stroke="url(#gGold)" stroke-width="2"/>' +
+      '<path d="M90 42q9-6 18-2" stroke="url(#gGold)" stroke-width="2" fill="none"/>' +
+      '</g><path d="M168 46l3 7 7 3-7 3-3 7-3-7-7-3 7-3z" fill="#FF8FA3"/><path d="M28 70l2 5 5 2-5 2-2 5-2-5-5-2 5-2z" fill="#fff" opacity=".8"/>',
+
+    /* Bob — drinks: sharp bartender, quiff, vest, shaker */
+    drinks: '<g filter="url(#stk)">' +
+      '<path d="M26 220c4-42 32-62 74-62s70 20 74 62z" fill="#F4F1EA"/>' +
+      '<path d="M26 220c4-42 32-62 74-62l-22 62zM174 220c-4-42-32-62-74-62l22 62z" fill="#141317"/>' +
+      '<path d="M84 160l16 22 16-22-6 60h-20z" fill="#F4F1EA"/>' +
+      '<path d="M92 178h16l-3 6h-10z" fill="#FFB627"/><path d="M100 182l-9 6v-12zM100 182l9 6v-12z" fill="#FFB627"/>' +
+      '<circle cx="82" cy="196" r="2" fill="url(#gGold)"/><circle cx="118" cy="196" r="2" fill="url(#gGold)"/>' +
+      '<path d="M88 126h24v38c-7 6-17 6-24 0z" fill="#B87A54"/>' +
+      '<path d="M66 84c0-24 14-36 34-36s34 12 34 36c0 28-12 50-34 54-22-4-34-26-34-54z" fill="#C88B63"/>' +
+      '<path d="M70 106c4 20 14 30 30 32 16-2 26-12 30-32-6 14-16 20-30 20s-24-6-30-20z" fill="#2A1C16" opacity=".35"/>' +
+      '<path d="M62 84c-6-40 22-64 56-58 26 4 34 26 22 54-4-14-12-22-24-24-18-2-34 4-46 18z" fill="#16100D"/>' +
+      '<path d="M78 40c14-10 34-10 46 0" stroke="#4A3A30" stroke-width="3" fill="none" stroke-linecap="round"/>' +
+      '<path d="M74 82l20-3M106 79l20 3" stroke="#16100D" stroke-width="4.2" stroke-linecap="round"/>' +
+      '<path d="M76 92c5-5 13-5 18 0-5 4-13 4-18 0z" fill="#fff"/><circle cx="85" cy="92" r="3.9" fill="#2A1A10"/><circle cx="86.2" cy="90.8" r="1.2" fill="#fff"/>' +
+      '<path d="M106 92c5-5 13-5 18 0-5 4-13 4-18 0z" fill="#fff"/><circle cx="115" cy="92" r="3.9" fill="#2A1A10"/><circle cx="116.2" cy="90.8" r="1.2" fill="#fff"/>' +
+      '<path d="M75 91c6-5 14-5 20 0M105 91c6-5 14-5 20 0" stroke="#16100D" stroke-width="2.2" fill="none" stroke-linecap="round"/>' +
+      '<path d="M100 96c-2 8-4 12 1 13" stroke="#8E5A3C" stroke-width="2" fill="none" stroke-linecap="round"/>' +
+      '<path d="M88 119c8 3 16 2 24-4" stroke="#6E3A28" stroke-width="3" fill="none" stroke-linecap="round"/>' +
+      '<rect x="146" y="112" width="20" height="44" rx="4" fill="url(#gSilver)" transform="rotate(-18 156 134)"/>' +
+      '<rect x="146" y="102" width="20" height="12" rx="5" fill="url(#gSilver)" transform="rotate(-18 156 108)"/>' +
+      '<rect x="152" y="94" width="8" height="10" rx="3" fill="url(#gSilver)" transform="rotate(-18 156 99)"/>' +
+      '<circle cx="152" cy="150" r="13" fill="#C88B63"/>' +
+      '</g><circle cx="178" cy="70" r="5" fill="none" stroke="#FFB627" stroke-width="2"/><circle cx="186" cy="54" r="3" fill="none" stroke="#FFB627" stroke-width="2"/><circle cx="170" cy="48" r="2" fill="#FFB627"/>',
+
+    /* Dolly Aunty — kitty: glam gossip queen, giant shades, chai */
+    kitty: '<g filter="url(#stk)">' +
+      '<circle cx="100" cy="30" r="20" fill="#24122A"/>' +
+      '<ellipse cx="100" cy="78" rx="64" ry="54" fill="#24122A"/>' +
+      '<path d="M28 220c4-38 30-60 72-60s68 22 72 60z" fill="#F15BFF"/>' +
+      '<path d="M120 160c22 4 40 18 48 60h-24c-4-24-12-40-24-50z" fill="#B21FC9"/>' +
+      '<path d="M120 160c22 4 40 18 48 60" stroke="url(#gGold)" stroke-width="4" fill="none"/>' +
+      '<path d="M88 130h24v32c-7 6-17 6-24 0z" fill="#B87A5A"/>' +
+      '<circle cx="100" cy="98" r="44" fill="#C98B62"/>' +
+      '<path d="M58 92c4-34 30-46 56-40 18 4 30 18 28 40-8-20-26-28-44-26-18 2-32 12-40 26z" fill="#24122A"/>' +
+      '<circle cx="100" cy="72" r="3.6" fill="#E0245E"/>' +
+      '<rect x="62" y="84" width="34" height="26" rx="11" fill="#1A0D1F" stroke="url(#gGold)" stroke-width="3"/>' +
+      '<rect x="104" y="84" width="34" height="26" rx="11" fill="#1A0D1F" stroke="url(#gGold)" stroke-width="3"/>' +
+      '<path d="M96 94q4-4 8 0" stroke="url(#gGold)" stroke-width="3" fill="none"/>' +
+      '<path d="M68 90l10-3M110 90l10-3" stroke="#F15BFF" stroke-width="3" stroke-linecap="round" opacity=".8"/>' +
+      '<ellipse cx="72" cy="118" rx="7" ry="4" fill="#F15BFF" opacity=".35"/><ellipse cx="128" cy="118" rx="7" ry="4" fill="#F15BFF" opacity=".35"/>' +
+      '<path d="M88 124c8 6 20 6 28-4" stroke="#C2185B" stroke-width="5" fill="none" stroke-linecap="round"/>' +
+      '<circle cx="56" cy="114" r="5" fill="url(#gGold)"/><path d="M50 120h12l-2 10h-8z" fill="url(#gGold)"/>' +
+      '<circle cx="144" cy="114" r="5" fill="url(#gGold)"/><path d="M138 120h12l-2 10h-8z" fill="url(#gGold)"/>' +
+      '<path d="M40 176h32l-4 22c-1 6-23 6-24 0z" fill="#fff"/><path d="M72 182c10 0 10 12 0 12" stroke="#fff" stroke-width="4" fill="none"/>' +
+      '<rect x="40" y="176" width="32" height="5" fill="#C99A2E"/>' +
+      '</g><path d="M50 166c-4-6 4-10 0-16M60 166c-4-6 4-10 0-16" stroke="#fff" stroke-width="2.4" fill="none" stroke-linecap="round" opacity=".7"/>',
+
+    /* Bandit — house: party raccoon with headphones and neon shades */
+    house: '<g filter="url(#stk)">' +
+      '<path d="M46 66l-6-44 40 26zM154 66l6-44-40 26z" fill="#6B7085"/><path d="M50 56l-3-22 20 14zM150 56l3-22-20 14z" fill="#2B2D38"/>' +
+      '<path d="M30 220c4-40 30-60 70-60s66 20 70 60z" fill="#22232D"/>' +
+      '<path d="M70 168h60l-6 52h-48z" fill="#2EE6FF" opacity=".9"/><text x="100" y="204" text-anchor="middle" font-family="Unbounded,Arial Black,sans-serif" font-weight="800" font-size="20" fill="#06111A">SUS</text>' +
+      '<ellipse cx="100" cy="100" rx="66" ry="56" fill="#8A8FA3"/>' +
+      '<path d="M40 104c10-22 36-24 60-10 24-14 50-12 60 10-12 10-34 12-60 2-26 10-48 8-60-2z" fill="#22232D"/>' +
+      '<path d="M66 132c10-14 24-20 34-20s24 6 34 20c-8 14-20 20-34 20s-26-6-34-20z" fill="#E7E9F0"/>' +
+      '<ellipse cx="100" cy="122" rx="9" ry="6" fill="#111"/>' +
+      '<path d="M88 136c8 8 16 8 24 0" stroke="#111" stroke-width="3.5" fill="none" stroke-linecap="round"/><rect x="96" y="137" width="7" height="6" rx="1.5" fill="#fff"/>' +
+      '<rect x="56" y="88" width="36" height="20" rx="8" fill="#06111A" stroke="#2EE6FF" stroke-width="3"/>' +
+      '<rect x="108" y="88" width="36" height="20" rx="8" fill="#06111A" stroke="#2EE6FF" stroke-width="3"/>' +
+      '<path d="M92 96h16" stroke="#2EE6FF" stroke-width="3"/>' +
+      '<path d="M62 94h12M114 94h12" stroke="#2EE6FF" stroke-width="3" stroke-linecap="round" opacity=".9"/>' +
+      '<path d="M34 92C34 30 166 30 166 92" stroke="#2EE6FF" stroke-width="7" fill="none"/>' +
+      '<rect x="22" y="84" width="22" height="36" rx="9" fill="#13141B" stroke="#2EE6FF" stroke-width="3"/>' +
+      '<rect x="156" y="84" width="22" height="36" rx="9" fill="#13141B" stroke="#2EE6FF" stroke-width="3"/>' +
+      '</g><path d="M176 40l2 6 6 2-6 2-2 6-2-6-6-2 6-2z" fill="#2EE6FF"/><path d="M20 150l2 5 5 2-5 2-2 5-2-5-5-2 5-2z" fill="#C6FF3D"/>'
+  };
+
+  var HOSTS = {
+    kitty: { name: "Dolly Aunty", role: "Kitty Party host",
+      intro: ["Beta, sit sit. The gossip won't spill itself.", "Chai is hot, gossip is hotter. Let's begin.", "I've hosted 400 kitties. Try and impress me."],
+      game: ["Phones down, ears up. Aunty is watching.", "No cheating. I can see you through my shades.", "Whoever loses brings samosas next time."],
+      vote: ["Vote in secret. I'll keep your secret… mostly.", "Choose carefully, darling. Everyone will find out."],
+      reveal: ["Hayeee! I knew it. I always know.", "Scandalous! Tell me everything.", "This is going straight to the family group."],
+      boom: ["BOOM! Beta, that's what happens when you're slow.", "Ooh, that one went off like a cooker whistle!"],
+      win: ["Crown her! Or him! Somebody bring a crown!", "A true kitty legend. I'm almost jealous."] },
+    couple: { name: "Sara", role: "Couples host",
+      intro: ["Hi, lovebirds. Let's see how in sync you really are.", "Lights low, phones away. Let's make this interesting.", "I don't do boring dates. Neither should you."],
+      game: ["Be honest. I can always tell.", "Eye contact. It's free and it's hot.", "Answer like nobody's judging. I am, a little."],
+      vote: ["Pick in secret. No peeking, cutie.", "Your answer stays between you and me. Until it doesn't."],
+      reveal: ["Oh, you two are trouble.", "Interesting… very interesting.", "That's either a green flag or a whole conversation."],
+      boom: ["Ouch. That's going to need a hug.", "Well, that escalated."],
+      win: ["Okay, power couple. I see you.", "Main character energy, both of you."] },
+    drinks: { name: "Bob", role: "Drinking games host",
+      intro: ["Evening. Your bartender's here, and the rules are simple: have fun, drink water.", "Glasses up. Let's make a night of it.", "I'll keep count. You keep it classy. Mostly."],
+      game: ["Sips are optional. Legends drink water too.", "Pace yourselves. It's a long night.", "Shaken, not stirred. Like you after this round."],
+      vote: ["Vote quietly. I'll pour the verdict.", "No one sees your vote. Not even me. Okay, maybe me."],
+      reveal: ["And the room has spoken. Cheers to that.", "Oof. That's one for the group chat.", "Called it. I've seen this crowd before."],
+      boom: ["Boom. That's a sip, my friend.", "Too slow. Bottoms up. Or water. Your call."],
+      win: ["Legend of the night. Drink some water, champ.", "The bar salutes you."] },
+    house: { name: "Bandit", role: "House Party host",
+      intro: ["Yo! Bandit here. Let's get loud.", "Party raccoon reporting for chaos.", "Rules? I stole them. Let's go."],
+      game: ["Turn the music up. I'll wait.", "Somebody here is sus. I can smell it.", "No skipping. Bandit sees everything."],
+      vote: ["Vote in secret. Trust no one. Especially me.", "Lock it in. Don't look at their screen, sneaky."],
+      reveal: ["SUS! Called it!", "Plot twist of the year.", "The group chat is not ready for this."],
+      boom: ["KABOOM! Hahaha, you held it!", "That's what you get for being slow!"],
+      win: ["Absolute legend. I'd rob a party with you.", "GG. Chaos approves."] }
+  };
+  function hostSvg(cat) {
+    return '<svg viewBox="0 0 200 220" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="' + HOSTS[cat].name + '">' + HOST_DEFS + HOST_ART[cat] + '</svg>';
+  }
+  function hostEl(cat, cls) { var d = el("div", { class: "host " + (cls || "") }); d.innerHTML = hostSvg(cat); return d; }
+
   /* ================= VIEWS ================= */
   var ICONS = {
     play: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 4.6v14.8a1 1 0 0 0 1.5.86l12.2-7.4a1 1 0 0 0 0-1.72L8.5 3.74A1 1 0 0 0 7 4.6z"/></svg>',
@@ -2719,7 +2907,7 @@ textarea.field { padding: 14px 16px; min-height: 96px; resize: vertical; width: 
       }
     }, [
       artEl(gid),
-      el("span", { class: "tier" + (g.tier === "main" ? " main" : ""), "aria-hidden": "true" }, [TIERNAME[g.tier]]),
+      el("span", { class: "tier" + (g.tier === "main" ? " main" : ""), "aria-hidden": "true" }, [g.tier === "original" ? "Original" : TIERNAME[g.tier]]),
       g.adult ? el("span", { class: "p18", "aria-hidden": "true" }, ["18+"]) : null,
       el("span", { class: "pbot", "aria-hidden": "true" }, [
         el("span", { class: "ptitle" }, [g.name]),
@@ -2736,9 +2924,9 @@ textarea.field { padding: 14px 16px; min-height: 96px; resize: vertical; width: 
       el("button", { class: "arr r", type: "button", "aria-label": "Scroll right", onclick: function () { go(1); } }, ["›"])
     ]);
   }
-  function lane(title, items, link, dotColor, sub) {
+  function lane(title, items, link, dotColor, sub, hostCat) {
     return el("section", { class: "lane" }, [
-      el("h2", { class: "lane-h" }, [dotColor ? el("span", { class: "dot", style: "background:" + dotColor + ";box-shadow:0 0 12px " + dotColor }) : null, title, link ? el("a", { class: "more", href: "#" + link }, ["See all ›"]) : null]),
+      el("h2", { class: "lane-h" }, [hostCat ? hostEl(hostCat, "mini") : null, dotColor ? el("span", { class: "dot", style: "background:" + dotColor + ";box-shadow:0 0 12px " + dotColor }) : null, title, link ? el("a", { class: "more", href: "#" + link }, ["See all ›"]) : null]),
       sub ? el("p", { class: "lane-sub" }, [sub]) : null,
       slider(items)
     ]);
@@ -2775,6 +2963,7 @@ textarea.field { padding: 14px 16px; min-height: 96px; resize: vertical; width: 
       el("div", { class: "ibody" }, [
         el("div", { class: "stack" }, [metaline(gid, cat), el("p", { class: "about" }, [g.blurb])]),
         el("div", { class: "side" }, [
+          el("p", { class: "hostline" }, [hostEl(cat), el("span", null, [el("b", null, ["Host: "]), HOSTS[cat].name])]),
           el("p", null, [el("b", null, ["Players: "]), b.players]),
           el("p", null, [el("b", null, ["Time: "]), b.time]),
           g.levels || g.truths ? el("p", null, [el("b", null, ["Levels: "]), Object.keys(g.levels || D(g.truths)).join(", ")]) : null
@@ -2796,8 +2985,9 @@ textarea.field { padding: 14px 16px; min-height: 96px; resize: vertical; width: 
     if (!featured) featured = pick(["imposter", "kittyroyale", "couplesync", "imposter"]);
     var g = GAMES[featured], a = artFor(featured);
     var hero = el("section", { class: "hero" }, [
-      el("div", { class: "hero-inner " + a.cls, style: a.style }, [
+      el("div", { class: "hero-inner has-host " + a.cls, style: a.style }, [
         artEl(featured),
+        hostEl(primaryCat(featured)),
         el("div", { class: "hero-shade", "aria-hidden": "true" }),
         el("div", { class: "hero-copy" }, [
           kicker("Main event · " + CATS[primaryCat(featured)].name, true),
@@ -2811,12 +3001,19 @@ textarea.field { padding: 14px 16px; min-height: 96px; resize: vertical; width: 
     var lanes = el("div", { class: "lanes" });
     if (state.recent.length) lanes.appendChild(lane("Play again", state.recent.map(function (gid) { return poster(gid, null, { wide: true, info: "Pick up where you left off" }); })));
     lanes.appendChild(lane("Main events", ORDER.map(function (k) { return poster(CATS[k].games[0], k, { wide: true }); }), null, "var(--gold)", "One big game per mood. Built to last the whole night."));
+    lanes.appendChild(el("section", { class: "lane" }, [
+      el("h2", { class: "lane-h" }, ["Meet your hosts"]),
+      el("p", { class: "lane-sub", style: "margin-bottom:12px" }, ["Every mood has its own host. They run the game and judge you a little."]),
+      el("div", { class: "hosts" }, ORDER.map(function (k) {
+        return el("a", { class: "hostcard", href: "#" + k, style: "--k:var(--" + k + ")" }, [hostEl(k), el("b", null, [HOSTS[k].name]), el("span", null, [CATS[k].short + (CATS[k].adult ? " 18+" : "")]), el("p", null, ["\u201c" + HOSTS[k].intro[0] + "\u201d"])]);
+      }))
+    ]));
     lanes.appendChild(lane("Top 10 tonight", TOP10.map(function (gid, i) {
       return el("div", { class: "tpick" }, [el("span", { class: "num", "aria-hidden": "true" }, [String(i + 1)]), poster(gid, null)]);
     })));
     ORDER.forEach(function (k, i) {
       var c = CATS[k];
-      lanes.appendChild(lane(c.name + (c.adult ? " · 18+" : ""), c.games.map(function (gid) { return poster(gid, k); }), k, "var(--" + k + ")"));
+      lanes.appendChild(lane(c.name + (c.adult ? " · 18+" : ""), c.games.map(function (gid) { return poster(gid, k); }), k, null, "Hosted by " + HOSTS[k].name, k));
       if (i === 0) lanes.appendChild(promo());
       if (i === 1) { var ic = installCard(); if (ic) lanes.appendChild(ic); }
     });
@@ -2892,10 +3089,12 @@ textarea.field { padding: 14px 16px; min-height: 96px; resize: vertical; width: 
       subnav(key),
       el("section", { class: "cathero m" + (hash(key) % 6), style: "--k:var(--" + key + ");--k2:var(--acid);--x:80%;--y:0%" }, [
         el("span", { class: "art", "aria-hidden": "true" }),
+        hostEl(key),
         el("div", { class: "hero-copy" }, [
-          kicker(c.games.length + " games"),
+          kicker(c.games.length + " games · hosted by " + HOSTS[key].name),
           el("h1", { class: "hero-title" }, [c.name]),
           el("p", { class: "lede" }, [c.blurb]),
+          el("p", { class: "bubble say" }, [el("span", { class: "who" }, [HOSTS[key].name]), pick(HOSTS[key].intro)]),
           el("div", { class: "hero-actions" }, [playBtn(main, key, "Play the main event"), el("a", { class: "binfo", href: "#room" }, [icon("people"), "Play together"])])
         ])
       ])
@@ -2923,6 +3122,7 @@ textarea.field { padding: 14px 16px; min-height: 96px; resize: vertical; width: 
         el("h1", { class: "title" }, [g.name]),
         metaline(gid, cat)
       ]),
+      hostBar(cat, state.recent[0] === gid && Math.random() < 0.5 ? "game" : "intro"),
       el("details", { class: "how" }, [el("summary", null, ["How to play"]), el("p", null, [ruleOf(gid)])]),
       g.adult ? el("p", { class: "small" }, ["Sipping is optional. Water counts."]) : null,
       body
@@ -3180,7 +3380,8 @@ textarea.field { padding: 14px 16px; min-height: 96px; resize: vertical; width: 
     var v = room.view || { kind: "idle", text: "Waiting for the host to pick a game." };
     if (v.adult && !state.adult) return gateView("", true);
     curCat = v.cat || "kitty";
-    var parts = [el("div", { class: "gamehead" }, [kicker("Room " + room.code + (room.me ? " · " + room.me : "")), el("p", { class: "small" }, [room.players.join(" · ")])])];
+    var parts = [el("div", { class: "gamehead" }, [kicker("Room " + room.code + (room.me ? " · " + room.me : "")), el("p", { class: "small" }, [room.players.join(" · ")])]),
+      hostBar(v.cat || "kitty", hostMood(v) || (v.kind === "idle" ? "intro" : "game"))];
     if (v.kind === "number") {
       var called = v.called || [], board = el("div", { class: "board" });
       for (var i = 1; i <= 90; i++) board.appendChild(el("div", { class: "cell" + (called.indexOf(i) > -1 ? " on" : "") + (i === v.n ? " last" : "") }, [String(i)]));
