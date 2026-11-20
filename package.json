@@ -1,0 +1,17 @@
+{
+  "name": "duo",
+  "version": "1.0.0",
+  "description": "Duo — a private little world for two. Couples web app.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "express": "^4.19.2",
+    "pg": "^8.11.3"
+  }
+}

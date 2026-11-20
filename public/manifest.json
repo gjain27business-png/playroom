@@ -1,0 +1,11 @@
+{
+  "name": "Duo — a little world for two",
+  "short_name": "Duo",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#FFF7F2",
+  "theme_color": "#FFF7F2",
+  "icons": [
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}
