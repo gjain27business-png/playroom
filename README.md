@@ -14,7 +14,7 @@ Test as a couple: open one normal window and one incognito window, sign up twice
 
 ## Deploy on Render (same as OT)
 1. Push this folder to a new GitHub repo.
-2. Render → **New → Blueprint** → pick the repo. `render.yaml` creates the web service **and** a Postgres database and links them.
+2. Render → **New → Blueprint** → pick the repo. `render.yaml` creates the web service **and** a Postgres database (free plans; upgrade before real users).
 3. In the service's **Environment** tab set:
    - `ADMIN_KEY` — any secret (used to activate paid couples manually)
    - `ANTHROPIC_API_KEY` — optional, turns on AI date ideas (without it Duo uses handpicked ideas)
